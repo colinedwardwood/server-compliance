@@ -1,0 +1,15 @@
+# Local credentials — never commit real values
+.env
+grafana-api.key
+grafana-cloud.instance
+
+# Test / dev target host config
+test.target
+
+# macOS
+.DS_Store
+
+# Editor
+.cursor/
+*.swp
+*~

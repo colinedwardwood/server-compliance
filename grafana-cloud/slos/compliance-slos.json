@@ -1,0 +1,94 @@
+[
+  {
+    "name": "Compliance Score — linux-baseline",
+    "description": "linux-baseline average compliance score stays at or above 0.95 (95%). Uses avg_over_time of the compliance score metric over each evaluation interval. The compliance score is a value 0.0–1.0 derived from Loki recording rules.",
+    "query": {
+      "type": "freeform",
+      "freeform": {
+        "query": "avg_over_time(cinc_auditor_compliance_score{profile=\"linux-baseline\"}[$__rate_interval])"
+      }
+    },
+    "objectives": [
+      {
+        "value": 0.95,
+        "window": "28d"
+      }
+    ],
+    "labels": [
+      {"key": "profile", "value": "linux-baseline"},
+      {"key": "category", "value": "compliance"}
+    ],
+    "alerting": {
+      "fastBurn": {
+        "annotations": [
+          {
+            "key": "name",
+            "value": "Compliance SLO Burn Rate Critical — linux-baseline"
+          },
+          {
+            "key": "description",
+            "value": "linux-baseline compliance error budget is burning dangerously fast. Immediate investigation required."
+          }
+        ]
+      },
+      "slowBurn": {
+        "annotations": [
+          {
+            "key": "name",
+            "value": "Compliance SLO Burn Rate Warning — linux-baseline"
+          },
+          {
+            "key": "description",
+            "value": "linux-baseline compliance error budget is burning faster than expected. Review failing controls."
+          }
+        ]
+      }
+    }
+  },
+  {
+    "name": "Compliance Score — cis-dil-benchmark",
+    "description": "CIS Level 1 average compliance score stays at or above 0.90 (90%). Uses avg_over_time of the compliance score metric over each evaluation interval. The compliance score is a value 0.0–1.0 derived from Loki recording rules.",
+    "query": {
+      "type": "freeform",
+      "freeform": {
+        "query": "avg_over_time(cinc_auditor_compliance_score{profile=\"cis-dil-benchmark\"}[$__rate_interval])"
+      }
+    },
+    "objectives": [
+      {
+        "value": 0.90,
+        "window": "28d"
+      }
+    ],
+    "labels": [
+      {"key": "profile", "value": "cis-dil-benchmark"},
+      {"key": "category", "value": "compliance"}
+    ],
+    "alerting": {
+      "fastBurn": {
+        "annotations": [
+          {
+            "key": "name",
+            "value": "Compliance SLO Burn Rate Critical — cis-dil-benchmark"
+          },
+          {
+            "key": "description",
+            "value": "CIS Level 1 compliance error budget is burning dangerously fast. Immediate investigation required."
+          }
+        ]
+      },
+      "slowBurn": {
+        "annotations": [
+          {
+            "key": "name",
+            "value": "Compliance SLO Burn Rate Warning — cis-dil-benchmark"
+          },
+          {
+            "key": "description",
+            "value": "CIS Level 1 compliance error budget is burning faster than expected. Review failing controls."
+          }
+        ]
+      }
+    }
+  }
+]

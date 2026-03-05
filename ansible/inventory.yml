@@ -1,0 +1,15 @@
+---
+# Ansible inventory — list your target hosts here.
+# Copy and edit this file; do not commit real IPs/FQDNs if they are sensitive.
+#
+# ansible-playbook -i inventory.yml site.yml
+all:
+  children:
+    compliance_targets:
+      hosts:
+        my-server:
+          ansible_host: 192.0.2.10          # replace with your host IP or FQDN
+          ansible_user: ubuntu              # SSH user (must have sudo)
+          ansible_ssh_private_key_file: ~/.ssh/id_ed25519
+          # Per-host overrides (optional):
+          # audit_profiles_base: /opt/audit-profiles

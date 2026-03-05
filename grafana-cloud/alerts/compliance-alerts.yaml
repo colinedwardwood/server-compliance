@@ -1,0 +1,238 @@
+# Grafana / Prometheus alert rules for the server-compliance pipeline.
+#
+# Categorized using the SAAFE model (https://github.com/grafana/saafe-model):
+#   Saturation — resource pressure that may affect scan reliability
+#   Amend      — changes in the compliance posture (score drift, new failures)
+#   Anomaly    — unexpected patterns (scan duration spikes, unusual failure counts)
+#   Failure    — binary conditions indicating something is broken
+#   Error      — degraded compliance state exceeding tolerance thresholds
+#
+# Import into Grafana Cloud via the Alerting API or the UI (Alerting → Alert rules → Import).
+
+groups:
+  # ════════════════════════════════════════════════════════════════════════════
+  # FAILURE — something is broken and needs immediate attention
+  # ════════════════════════════════════════════════════════════════════════════
+  - name: compliance-failure
+    interval: 5m
+    rules:
+      - alert: ComplianceScanStale
+        expr: |
+          (time() - cinc_auditor_last_scan_timestamp_seconds) > 7200
+        for: 15m
+        labels:
+          severity: critical
+          saafe_category: failure
+          saafe_severity: critical
+        annotations:
+          summary: "Compliance scan stale on {{ $labels.host }} / {{ $labels.profile }}"
+          description: >-
+            No scan results received for {{ $labels.profile }} on {{ $labels.host }}
+            in over 2 hours. The cron job may have stopped, cinc-auditor may be
+            failing, or Alloy may not be shipping metrics.
+
+      - alert: ComplianceScoreZero
+        expr: |
+          cinc_auditor_compliance_score == 0
+          and cinc_auditor_controls_total{status="total"} > 0
+        for: 10m
+        labels:
+          severity: critical
+          saafe_category: failure
+          saafe_severity: critical
+        annotations:
+          summary: "Compliance score is 0% on {{ $labels.host }} / {{ $labels.profile }}"
+          description: >-
+            Every evaluated control is failing on {{ $labels.host }} for
+            {{ $labels.profile }}. This likely indicates a systemic issue
+            (broken auditor, missing dependencies, or a catastrophic
+            configuration regression).
+
+      - alert: CriticalControlFailing
+        expr: |
+          cinc_auditor_control_status{severity="critical"} == 0
+        for: 10m
+        labels:
+          severity: critical
+          saafe_category: failure
+          saafe_severity: critical
+        annotations:
+          summary: "Critical control {{ $labels.control }} failing on {{ $labels.host }}"
+          description: >-
+            Control {{ $labels.control }} (severity=critical) is failing on
+            {{ $labels.host }} / {{ $labels.profile }}. Critical controls
+            represent the highest-impact security risks and should be
+            investigated immediately.
+
+  # ════════════════════════════════════════════════════════════════════════════
+  # ERROR — compliance is degraded beyond acceptable thresholds
+  # ════════════════════════════════════════════════════════════════════════════
+  - name: compliance-error
+    interval: 5m
+    rules:
+      - alert: ComplianceScoreLow
+        expr: |
+          cinc_auditor_compliance_score < 0.9
+        for: 30m
+        labels:
+          severity: warning
+          saafe_category: error
+          saafe_severity: warning
+        annotations:
+          summary: "Compliance score below 90% on {{ $labels.host }} / {{ $labels.profile }}"
+          description: >-
+            {{ $labels.host }} has a compliance score of
+            {{ $value | humanizePercentage }} for {{ $labels.profile }}.
+            Review the failing controls and either remediate or add
+            justified waivers.
+
+      - alert: HighSeverityFailures
+        expr: |
+          count(cinc_auditor_control_status{severity=~"critical|high"} == 0) by (host, profile) > 0
+        for: 15m
+        labels:
+          severity: warning
+          saafe_category: error
+          saafe_severity: warning
+        annotations:
+          summary: "High/critical control failures on {{ $labels.host }} / {{ $labels.profile }}"
+          description: >-
+            {{ $value }} controls with severity critical or high are failing
+            on {{ $labels.host }} / {{ $labels.profile }}.
+
+      - alert: ExcessiveFailures
+        expr: |
+          cinc_auditor_controls_total{status="failed"}
+          / on(host, profile) cinc_auditor_controls_total{status="total"}
+          > 0.2
+        for: 30m
+        labels:
+          severity: warning
+          saafe_category: error
+          saafe_severity: warning
+        annotations:
+          summary: "Over 20% of controls failing on {{ $labels.host }} / {{ $labels.profile }}"
+          description: >-
+            {{ $value | humanizePercentage }} of controls are failing on
+            {{ $labels.host }}. This exceeds the 20% threshold and indicates
+            broad compliance regression.
+
+  # ════════════════════════════════════════════════════════════════════════════
+  # AMEND — compliance posture has changed
+  # ════════════════════════════════════════════════════════════════════════════
+  - name: compliance-amend
+    interval: 5m
+    rules:
+      - alert: ComplianceScoreDrop
+        expr: |
+          cinc_auditor_compliance_score offset 1h
+          - cinc_auditor_compliance_score
+          > 0.05
+        for: 15m
+        labels:
+          severity: warning
+          saafe_category: amend
+          saafe_severity: warning
+        annotations:
+          summary: "Compliance score dropped >5% on {{ $labels.host }} / {{ $labels.profile }}"
+          description: >-
+            The compliance score on {{ $labels.host }} for {{ $labels.profile }}
+            dropped by more than 5 percentage points in the last hour. A recent
+            system change, package update, or profile upgrade may have introduced
+            new failures.
+
+      - alert: NewFailuresDetected
+        expr: |
+          cinc_auditor_controls_total{status="failed"}
+          - cinc_auditor_controls_total{status="failed"} offset 1h
+          > 3
+        for: 10m
+        labels:
+          severity: info
+          saafe_category: amend
+          saafe_severity: info
+        annotations:
+          summary: "{{ $value }} new control failures on {{ $labels.host }} / {{ $labels.profile }}"
+          description: >-
+            The number of failing controls increased by {{ $value }} in the
+            last hour on {{ $labels.host }}. Check for recent configuration
+            changes, package updates, or profile upgrades.
+
+  # ════════════════════════════════════════════════════════════════════════════
+  # ANOMALY — unexpected patterns worth investigating
+  # ════════════════════════════════════════════════════════════════════════════
+  - name: compliance-anomaly
+    interval: 5m
+    rules:
+      - alert: ScanDurationAnomaly
+        expr: |
+          cinc_auditor_scan_duration_seconds
+          > 2 * avg_over_time(cinc_auditor_scan_duration_seconds[24h])
+          and cinc_auditor_scan_duration_seconds > 60
+        for: 15m
+        labels:
+          severity: info
+          saafe_category: anomaly
+          saafe_severity: info
+        annotations:
+          summary: "Scan taking 2x longer than usual on {{ $labels.host }} / {{ $labels.profile }}"
+          description: >-
+            The last scan on {{ $labels.host }} took {{ $value | humanizeDuration }}
+            for {{ $labels.profile }}, which is more than double the 24-hour
+            average. This may indicate resource contention, a hung check, or
+            a significant increase in the number of controls.
+
+      - alert: WaivedControlsIncreasing
+        expr: |
+          cinc_auditor_controls_total{status="waived"}
+          - cinc_auditor_controls_total{status="waived"} offset 24h
+          > 5
+        for: 30m
+        labels:
+          severity: info
+          saafe_category: anomaly
+          saafe_severity: info
+        annotations:
+          summary: "Waived controls increased by {{ $value }} on {{ $labels.host }}"
+          description: >-
+            The number of waived controls on {{ $labels.host }} for
+            {{ $labels.profile }} increased by {{ $value }} in the last 24h.
+            Large waiver increases may indicate controls are being suppressed
+            instead of remediated.
+
+  # ════════════════════════════════════════════════════════════════════════════
+  # SATURATION — resource pressure affecting scan reliability
+  # ════════════════════════════════════════════════════════════════════════════
+  - name: compliance-saturation
+    interval: 5m
+    rules:
+      - alert: ScanHostHighCPU
+        expr: |
+          (1 - avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m]))) > 0.9
+          and on(instance) cinc_auditor_last_scan_timestamp_seconds
+        for: 15m
+        labels:
+          severity: info
+          saafe_category: saturation
+          saafe_severity: info
+        annotations:
+          summary: "High CPU on compliance-monitored host {{ $labels.instance }}"
+          description: >-
+            CPU utilization is above 90% on {{ $labels.instance }}, which runs
+            compliance scans. This may cause scan timeouts or delayed results.
+
+      - alert: ScanHostDiskPressure
+        expr: |
+          (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) < 0.1
+          and on(instance) cinc_auditor_last_scan_timestamp_seconds
+        for: 15m
+        labels:
+          severity: warning
+          saafe_category: saturation
+          saafe_severity: warning
+        annotations:
+          summary: "Disk space below 10% on compliance-monitored host {{ $labels.instance }}"
+          description: >-
+            Root filesystem on {{ $labels.instance }} has less than 10% free
+            space. Compliance scan reports and logs may fail to write, causing
+            stale scan data.

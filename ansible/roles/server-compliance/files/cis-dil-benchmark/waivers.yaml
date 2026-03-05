@@ -1,0 +1,49 @@
+# CIS DIL Benchmark — waivers for Ubuntu 24.04 home/personal server
+#
+# !! HOST-SPECIFIC — review before deploying to other machines !!
+# Several waivers below reference specific hardware, partition layout, or
+# services unique to one host. Audit and update these before applying to
+# any other system.
+#
+# Review and remove any waivers that no longer apply.
+# All waivers include a justification and expiration date.
+
+# ── Time synchronization ──────────────────────────────────────────────────────
+# CIS expects chrony or ntp; Ubuntu 24.04 uses systemd-timesyncd by default.
+# This host uses systemd-timesyncd which is sufficient for a home lab.
+cis-dil-benchmark-2.2.1.1:
+  expiration_date: "2026-12-31"
+  justification: "systemd-timesyncd provides adequate NTP sync for a home lab; chrony not required."
+  run: true
+
+# ── Prelink ───────────────────────────────────────────────────────────────────
+# prelink is not installed on Ubuntu 24.04 and the package does not exist.
+cis-dil-benchmark-1.5.4:
+  expiration_date: "2026-12-31"
+  justification: "prelink package does not exist on Ubuntu 24.04 LTS; control not applicable."
+  run: false
+
+# ── Bootloader password ───────────────────────────────────────────────────────
+# Physical access to this server is controlled; GRUB password would prevent
+# remote recovery via cloud provider / KVM console.
+cis-dil-benchmark-1.4.2:
+  expiration_date: "2026-12-31"
+  justification: "Single-tenant home lab; physical access is controlled and GRUB password would block remote recovery."
+  run: true
+
+# ── /tmp on separate partition ────────────────────────────────────────────────
+# This VM was provisioned without a separate /tmp partition. Low risk in a
+# home lab environment; mitigated by noexec mount options in /etc/fstab.
+cis-dil-benchmark-1.1.2:
+  expiration_date: "2026-12-31"
+  justification: "Home lab VM provisioned without separate /tmp partition; risk accepted, noexec enforced."
+  run: true
+
+# ── Wireless interfaces ───────────────────────────────────────────────────────
+# This is a bare-metal server (Latitude E6220) with WiFi disabled in BIOS.
+# The control checks that wireless is disabled — it is, but the check
+# method may differ on Ubuntu 24.
+cis-dil-benchmark-3.7:
+  expiration_date: "2026-12-31"
+  justification: "WiFi disabled in BIOS on this hardware; control method unreliable on Ubuntu 24.04."
+  run: true

@@ -1,0 +1,51 @@
+---
+# ── Grafana Cloud credentials ──────────────────────────────────────────────────
+# Required. Set these in your inventory, group_vars, or an Ansible Vault file.
+# Never commit real values to source control.
+grafana_prom_username: ""
+grafana_prom_password: ""
+grafana_loki_username: ""
+grafana_loki_password: ""
+
+# ── Grafana Cloud remote-write endpoints ───────────────────────────────────────
+# These match the URLs already in config.alloy. Override if your stack is
+# in a different region.
+grafana_prom_url: "https://prometheus-us-central1.grafana.net/api/prom/push"
+grafana_loki_url: "https://logs-prod3.grafana.net/loki/api/v1/push"
+
+# ── Audit profile locations ────────────────────────────────────────────────────
+audit_profiles_base: "/opt/audit-profiles"
+audit_log_dir: "/var/log/cinc-auditor"
+
+# ── Compliance profiles ────────────────────────────────────────────────────────
+# Each entry is downloaded from GitHub, extracted, and scheduled via cron.
+compliance_profiles:
+  - name: linux-baseline
+    repo: "https://github.com/dev-sec/linux-baseline/archive/refs/tags/2.9.0.tar.gz"
+    extracted_dir: "linux-baseline-2.9.0"
+    cron_minute: "5"
+    cron_hour: "*"
+    cron_day: "*"
+    cron_month: "*"
+    cron_weekday: "*"
+    has_inputs: false
+
+  - name: cis-dil-benchmark
+    repo: "https://github.com/dev-sec/cis-dil-benchmark/archive/refs/tags/0.4.12.tar.gz"
+    extracted_dir: "cis-dil-benchmark-0.4.12"
+    cron_minute: "15"
+    cron_hour: "0,6,12,18"
+    cron_day: "*"
+    cron_month: "*"
+    cron_weekday: "*"
+    has_inputs: true
+
+# ── System user that runs scans ───────────────────────────────────────────────
+# The cron jobs run as root so cinc-auditor can audit privileged resources
+# without needing a stored sudo password.
+compliance_cron_user: "root"
+
+# ── Log retention ─────────────────────────────────────────────────────────────
+log_retention_runs: 48
+logrotate_rotate: 14
+logrotate_size: "50M"

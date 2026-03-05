@@ -1,0 +1,4 @@
+# CIS Distribution-Independent Linux Benchmark — InSpec inputs
+# Level 1 = "practicably applicable" — does not break server functionality
+# Level 2 = more restrictive, may interfere with legitimate workloads
+cis_level: 1

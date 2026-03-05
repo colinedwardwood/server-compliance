@@ -1,0 +1,18 @@
+---
+- name: Install compliance scan cron jobs
+  ansible.builtin.cron:
+    name: "cinc-auditor scan — {{ item.name }}"
+    user: "{{ compliance_cron_user }}"
+    minute: "{{ item.cron_minute }}"
+    hour: "{{ item.cron_hour }}"
+    day: "{{ item.cron_day }}"
+    month: "{{ item.cron_month }}"
+    weekday: "{{ item.cron_weekday }}"
+    job: >-
+      AUDIT_PROFILES_BASE={{ audit_profiles_base }}
+      /usr/local/bin/verify.sh {{ item.name }}
+      >> /var/log/cinc-auditor/cron_{{ item.name | replace('-', '_') }}.log 2>&1
+    state: present
+  loop: "{{ compliance_profiles }}"
+  loop_control:
+    label: "{{ item.name }}"

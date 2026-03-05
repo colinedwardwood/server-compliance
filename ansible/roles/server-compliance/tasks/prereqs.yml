@@ -1,0 +1,32 @@
+---
+- name: Update apt cache
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Install required packages
+  ansible.builtin.apt:
+    name:
+      - curl
+      - cron
+      - git
+      - gpg
+      - apt-transport-https
+      - logrotate
+    state: present
+
+- name: Create audit log directory
+  ansible.builtin.file:
+    path: "{{ audit_log_dir }}"
+    state: directory
+    owner: root
+    group: adm
+    mode: "0755"
+
+- name: Create audit profiles base directory
+  ansible.builtin.file:
+    path: "{{ audit_profiles_base }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"

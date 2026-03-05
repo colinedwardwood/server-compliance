@@ -1,0 +1,63 @@
+---
+- name: Download and extract compliance profiles
+  block:
+    - name: Download profile tarball — {{ item.name }}
+      ansible.builtin.get_url:
+        url: "{{ item.repo }}"
+        dest: "/tmp/{{ item.name }}.tar.gz"
+        mode: "0644"
+      loop: "{{ compliance_profiles }}"
+      loop_control:
+        label: "{{ item.name }}"
+
+    - name: Extract profile — {{ item.name }}
+      ansible.builtin.unarchive:
+        src: "/tmp/{{ item.name }}.tar.gz"
+        dest: "{{ audit_profiles_base }}"
+        remote_src: true
+        creates: "{{ audit_profiles_base }}/{{ item.extracted_dir }}"
+      loop: "{{ compliance_profiles }}"
+      loop_control:
+        label: "{{ item.name }}"
+
+    - name: Symlink profile directory to canonical name — {{ item.name }}
+      ansible.builtin.file:
+        src: "{{ audit_profiles_base }}/{{ item.extracted_dir }}"
+        dest: "{{ audit_profiles_base }}/{{ item.name }}"
+        state: link
+        force: true
+      loop: "{{ compliance_profiles }}"
+      loop_control:
+        label: "{{ item.name }}"
+
+    - name: Remove downloaded tarballs
+      ansible.builtin.file:
+        path: "/tmp/{{ item.name }}.tar.gz"
+        state: absent
+      loop: "{{ compliance_profiles }}"
+      loop_control:
+        label: "{{ item.name }}"
+
+- name: Deploy linux-baseline waivers
+  ansible.builtin.copy:
+    src: linux-baseline/waivers.yaml
+    dest: "{{ audit_profiles_base }}/linux-baseline/waivers.yaml"
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Deploy cis-dil-benchmark waivers
+  ansible.builtin.copy:
+    src: cis-dil-benchmark/waivers.yaml
+    dest: "{{ audit_profiles_base }}/cis-dil-benchmark/waivers.yaml"
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Deploy cis-dil-benchmark inputs
+  ansible.builtin.copy:
+    src: cis-dil-benchmark/inputs.yaml
+    dest: "{{ audit_profiles_base }}/cis-dil-benchmark/inputs.yaml"
+    owner: root
+    group: root
+    mode: "0644"

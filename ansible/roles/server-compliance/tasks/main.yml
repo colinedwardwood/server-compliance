@@ -1,0 +1,33 @@
+---
+- name: Validate required variables
+  ansible.builtin.assert:
+    that:
+      - grafana_prom_username | length > 0
+      - grafana_prom_password | length > 0
+      - grafana_loki_username | length > 0
+      - grafana_loki_password | length > 0
+    fail_msg: >
+      Grafana Cloud credentials must be set. Define grafana_prom_username,
+      grafana_prom_password, grafana_loki_username, and grafana_loki_password
+      in your inventory or vault.
+
+- name: Install prerequisites
+  ansible.builtin.import_tasks: prereqs.yml
+
+- name: Install cinc-auditor
+  ansible.builtin.import_tasks: cinc_auditor.yml
+
+- name: Deploy verify.sh and directory structure
+  ansible.builtin.import_tasks: verify_script.yml
+
+- name: Install compliance profiles
+  ansible.builtin.import_tasks: profiles.yml
+
+- name: Install and configure Grafana Alloy
+  ansible.builtin.import_tasks: alloy.yml
+
+- name: Configure cron jobs
+  ansible.builtin.import_tasks: cron.yml
+
+- name: Configure log rotation
+  ansible.builtin.import_tasks: logrotate.yml

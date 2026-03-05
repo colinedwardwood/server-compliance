@@ -1,0 +1,60 @@
+---
+- name: Check if cinc-auditor is already installed
+  ansible.builtin.command: cinc-auditor version
+  register: cinc_version_check
+  changed_when: false
+  failed_when: false
+
+- name: Download cinc-auditor install script
+  ansible.builtin.get_url:
+    url: https://omnitruck.cinc.sh/install.sh
+    dest: /tmp/cinc_install.sh
+    mode: "0755"
+  when: cinc_version_check.rc != 0
+
+- name: Install cinc-auditor
+  ansible.builtin.command: bash /tmp/cinc_install.sh -P cinc-auditor
+  when: cinc_version_check.rc != 0
+  register: cinc_install
+  changed_when: cinc_install.rc == 0
+
+- name: Remove install script
+  ansible.builtin.file:
+    path: /tmp/cinc_install.sh
+    state: absent
+  when: cinc_version_check.rc != 0
+
+- name: Confirm cinc-auditor is available
+  ansible.builtin.command: cinc-auditor version
+  changed_when: false
+
+- name: Copy compliance-json reporter plugin source
+  ansible.builtin.copy:
+    src: inspec-reporter-compliance-json/
+    dest: /tmp/inspec-reporter-compliance-json/
+    mode: "0644"
+
+- name: Check if compliance-json reporter is installed
+  ansible.builtin.command: cinc-auditor plugin list
+  register: plugin_list
+  changed_when: false
+
+- name: Build compliance-json reporter gem
+  ansible.builtin.command:
+    cmd: /opt/cinc-auditor/embedded/bin/gem build inspec-reporter-compliance-json.gemspec
+    chdir: /tmp/inspec-reporter-compliance-json
+  when: "'inspec-reporter-compliance-json' not in plugin_list.stdout"
+  register: gem_build
+  changed_when: gem_build.rc == 0
+
+- name: Install compliance-json reporter plugin
+  ansible.builtin.command:
+    cmd: cinc-auditor plugin install /tmp/inspec-reporter-compliance-json/inspec-reporter-compliance-json-0.1.0.gem
+  when: "'inspec-reporter-compliance-json' not in plugin_list.stdout"
+  register: plugin_install
+  changed_when: plugin_install.rc == 0
+
+- name: Clean up reporter plugin build artifacts
+  ansible.builtin.file:
+    path: /tmp/inspec-reporter-compliance-json
+    state: absent

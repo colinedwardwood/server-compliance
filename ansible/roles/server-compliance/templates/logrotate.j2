@@ -1,0 +1,12 @@
+# /etc/logrotate.d/cinc-auditor — managed by Ansible
+{{ audit_log_dir }}/*.log {
+    daily
+    rotate {{ logrotate_rotate }}
+    size {{ logrotate_size }}
+    compress
+    delaycompress
+    missingok
+    notifempty
+    copytruncate
+    su root adm
+}

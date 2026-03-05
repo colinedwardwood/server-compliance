@@ -1,0 +1,8 @@
+---
+- name: Deploy verify.sh
+  ansible.builtin.copy:
+    src: verify.sh
+    dest: /usr/local/bin/verify.sh
+    owner: root
+    group: root
+    mode: "0755"

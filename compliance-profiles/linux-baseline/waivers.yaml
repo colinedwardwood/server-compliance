@@ -1,0 +1,67 @@
+# cinc-auditor / InSpec waiver file for dev-sec/linux-baseline
+# Updated against actual scan results on latitude-e6220 (Ubuntu 24.04 LTS)
+#
+# !! HOST-SPECIFIC — review before deploying to other machines !!
+# These waivers reference hardware (Latitude E6220 / Sandy Bridge) and
+# services (Tailscale, media server) specific to one host. Remove or update
+# any entry that does not apply to the target system.
+#
+# Format:
+#   <control-id>:
+#     expiration_date: YYYY-MM-DD   # waiver auto-expires; remove if no longer valid
+#     justification: <text>
+#     run: false   # skip entirely | run: true = run but don't count as failure
+#
+# Review quarterly; remove waivers that no longer apply.
+
+# ── CPU vulnerability mitigations (os-12) ────────────────────────────────────
+# The Latitude E6220 (Sandy Bridge, ~2012) has partial Spectre/Meltdown
+# mitigations in the kernel but the /sys/devices/system/cpu/vulnerabilities/
+# directory reports some as "Vulnerable" — this is a hardware limitation,
+# not a configuration failure.
+os-12:
+  expiration_date: "2027-01-01"
+  justification: "Latitude E6220 (Sandy Bridge) has known hardware Spectre/Meltdown limitations; kernel mitigations applied where supported."
+  run: true
+
+# ── Mount options: noexec / nosuid / nodev (os-14, os-15, os-16) ─────────────
+# These controls check that all mountpoints have noexec/nosuid/nodev set.
+# This host runs a personal media server; certain mounts (e.g. /home) need
+# exec to allow running user binaries and media tools.
+os-14:
+  expiration_date: "2027-01-01"
+  justification: "Home lab media server; /home requires exec for user scripts and cinc-auditor itself."
+  run: true
+
+os-15:
+  expiration_date: "2027-01-01"
+  justification: "Home lab; some mounts require suid bits for legitimate tools (su, ping, etc.)."
+  run: true
+
+os-16:
+  expiration_date: "2027-01-01"
+  justification: "Home lab; some mounts serve device files required by media hardware."
+  run: true
+
+# ── IPv4 forwarding (sysctl-01) ───────────────────────────────────────────────
+# Tailscale requires net.ipv4.ip_forward=1 to route traffic between the
+# Tailscale interface and the LAN. Without this, the VPN does not function.
+sysctl-01:
+  expiration_date: "2027-01-01"
+  justification: "Tailscale VPN requires IPv4 forwarding; managed and firewalled by Tailscale and ufw."
+  run: true
+
+# ── IPv6 router solicitations (sysctl-21) ────────────────────────────────────
+# Tailscale manages its own IPv6 stack and requires router solicitations
+# to discover routers on the Tailscale network interface.
+sysctl-21:
+  expiration_date: "2027-01-01"
+  justification: "Tailscale requires IPv6 router solicitations on its own interface; disabling breaks VPN connectivity."
+  run: true
+
+# ── IPv6 autoconfiguration (sysctl-26) ───────────────────────────────────────
+# Same rationale as sysctl-21; Tailscale relies on SLAAC for its IPv6 addresses.
+sysctl-26:
+  expiration_date: "2027-01-01"
+  justification: "Tailscale uses IPv6 SLAAC for address assignment; disabling breaks VPN IPv6 connectivity."
+  run: true

@@ -1,0 +1,13 @@
+---
+# Deploy cinc-auditor compliance scanning + Grafana Alloy to Ubuntu 24 hosts.
+#
+# Usage:
+#   ansible-playbook -i inventory.yml site.yml
+#
+# Credentials must be set via group_vars, host_vars, or --extra-vars.
+# See group_vars/all/vars.yml.example for the required variables.
+- name: Deploy server compliance stack
+  hosts: compliance_targets
+  become: true
+  roles:
+    - role: server-compliance

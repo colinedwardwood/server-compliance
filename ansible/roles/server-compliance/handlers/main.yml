@@ -1,0 +1,10 @@
+---
+- name: Restart alloy
+  ansible.builtin.systemd:
+    name: alloy
+    state: restarted
+    daemon_reload: true
+
+- name: Reload logrotate
+  ansible.builtin.command: logrotate -f /etc/logrotate.d/cinc-auditor
+  changed_when: false

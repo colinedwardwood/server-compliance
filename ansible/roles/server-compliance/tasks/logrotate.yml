@@ -1,0 +1,8 @@
+---
+- name: Deploy logrotate configuration for cinc-auditor logs
+  ansible.builtin.template:
+    src: logrotate.j2
+    dest: /etc/logrotate.d/cinc-auditor
+    owner: root
+    group: root
+    mode: "0644"

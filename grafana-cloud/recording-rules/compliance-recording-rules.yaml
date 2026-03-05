@@ -1,0 +1,109 @@
+# Loki recording rules that derive Prometheus metrics from compliance JSON logs.
+#
+# These rules run server-side in Grafana Cloud Loki and write their results
+# as Prometheus metrics. They replace the local textfile collector approach.
+#
+# Deploy with: ./deploy-recording-rules.sh
+
+groups:
+  - name: compliance-per-control
+    interval: 5m
+    rules:
+      # Per-control status gauge: 1=passed, 0=failed, -1=skipped, -2=waived
+      - record: cinc_auditor_control_status
+        expr: |
+          last_over_time(
+            {job="custom/cinc_auditor"}
+              | json
+              | type="control"
+              | unwrap status_val [2h]
+          ) by (host, profile, control, severity)
+
+  - name: compliance-aggregates
+    interval: 5m
+    rules:
+      # Compliance score (0.0–1.0, excluding waived/skipped)
+      - record: cinc_auditor_compliance_score
+        expr: |
+          last_over_time(
+            {job="custom/cinc_auditor"}
+              | json
+              | type="scan_summary"
+              | unwrap score [8h]
+          ) by (host, profile)
+
+      # Control counts by status
+      - record: cinc_auditor_controls_total
+        labels:
+          status: passed
+        expr: |
+          last_over_time(
+            {job="custom/cinc_auditor"}
+              | json
+              | type="scan_summary"
+              | unwrap passed [8h]
+          ) by (host, profile)
+
+      - record: cinc_auditor_controls_total
+        labels:
+          status: failed
+        expr: |
+          last_over_time(
+            {job="custom/cinc_auditor"}
+              | json
+              | type="scan_summary"
+              | unwrap failed [8h]
+          ) by (host, profile)
+
+      - record: cinc_auditor_controls_total
+        labels:
+          status: waived
+        expr: |
+          last_over_time(
+            {job="custom/cinc_auditor"}
+              | json
+              | type="scan_summary"
+              | unwrap waived [8h]
+          ) by (host, profile)
+
+      - record: cinc_auditor_controls_total
+        labels:
+          status: skipped
+        expr: |
+          last_over_time(
+            {job="custom/cinc_auditor"}
+              | json
+              | type="scan_summary"
+              | unwrap skipped [8h]
+          ) by (host, profile)
+
+      - record: cinc_auditor_controls_total
+        labels:
+          status: total
+        expr: |
+          last_over_time(
+            {job="custom/cinc_auditor"}
+              | json
+              | type="scan_summary"
+              | unwrap total [8h]
+          ) by (host, profile)
+
+      # Scan duration in seconds
+      - record: cinc_auditor_scan_duration_seconds
+        expr: |
+          last_over_time(
+            {job="custom/cinc_auditor"}
+              | json
+              | type="scan_summary"
+              | unwrap duration [8h]
+          ) by (host, profile)
+
+      # Unix timestamp of the last completed scan
+      - record: cinc_auditor_last_scan_timestamp_seconds
+        expr: |
+          last_over_time(
+            {job="custom/cinc_auditor"}
+              | json
+              | type="scan_summary"
+              | unwrap scan_ts [8h]
+          ) by (host, profile)
