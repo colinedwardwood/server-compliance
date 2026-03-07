@@ -180,7 +180,10 @@ for local_group in local_data.get("groups", []):
 sys.exit(0 if failed == 0 else 1)
 PYEOF
     RR_EXIT=$?
-    [ "${RR_EXIT}" -ne 0 ] && FAIL=$((FAIL + 1)) && PASS=$((PASS > 0 ? PASS - 1 : 0)) || true
+    if [ "${RR_EXIT}" -ne 0 ]; then
+      FAIL=$((FAIL + 1))
+      PASS=$((PASS > 0 ? PASS - 1 : 0))
+    fi
   fi
 fi
 
@@ -226,7 +229,9 @@ for group in local_data.get("groups", []):
 sys.exit(0 if failed == 0 else 1)
 PYEOF
   ALERT_EXIT=$?
-  [ "${ALERT_EXIT}" -ne 0 ] && FAIL=$((FAIL + 1)) || true
+  if [ "${ALERT_EXIT}" -ne 0 ]; then
+    FAIL=$((FAIL + 1))
+  fi
 fi
 
 # 5. SLOs
