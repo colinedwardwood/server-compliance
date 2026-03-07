@@ -4,32 +4,24 @@
 # each rule group via the Grafana Alerting Provisioning API.
 #
 # Usage:
-#   ./deploy-alerts.sh
-#   GRAFANA_URL=https://foo.grafana.net GRAFANA_TOKEN=glsa_... ./deploy-alerts.sh
+#   ./scripts/deploy-alerts.sh
+#   GRAFANA_URL=https://foo.grafana.net GRAFANA_TOKEN=glsa_... ./scripts/deploy-alerts.sh
 #
-# Requirements: curl, jq, python3 with PyYAML (sudo apt install python3-yaml)
+# Requirements: curl, jq, python3 with PyYAML (pip3 install pyyaml)
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
-# ── Credentials ───────────────────────────────────────────────────────────────
-ENV_FILE="${SCRIPT_DIR}/.env"
-if [ -f "${ENV_FILE}" ]; then
-  # shellcheck source=/dev/null
-  set -a; source "${ENV_FILE}"; set +a
-fi
+# shellcheck source=scripts/grafana-lib.sh
+source "${SCRIPT_DIR}/grafana-lib.sh"
 
-GRAFANA_URL="${GRAFANA_URL:-}"
-GRAFANA_TOKEN="${GRAFANA_TOKEN:-}"
+gf_load_env "${REPO_DIR}"
 
-if [ -z "${GRAFANA_URL}" ] || [ -z "${GRAFANA_TOKEN}" ]; then
-  echo "Error: GRAFANA_URL and GRAFANA_TOKEN must be set (via environment or .env file)." >&2
-  echo "  Copy .env.example to .env and fill in your values, or set the env vars directly." >&2
-  exit 1
-fi
-
-ALERTS_FILE="${SCRIPT_DIR}/grafana-cloud/alerts/compliance-alerts.yaml"
+ALERTS_FILE="${REPO_DIR}/grafana-cloud/alerts/compliance-alerts.yaml"
+FOLDER_TITLE="Compliance"
+FOLDER_UID="compliance"
 
 if [ ! -f "${ALERTS_FILE}" ]; then
   echo "Error: Alert rules file not found: ${ALERTS_FILE}" >&2
@@ -42,40 +34,11 @@ if ! python3 -c "import yaml" 2>/dev/null; then
   exit 1
 fi
 
-# ── Folder config ─────────────────────────────────────────────────────────────
-FOLDER_TITLE="Compliance"
-FOLDER_UID="compliance"
-
-# ── Helpers ───────────────────────────────────────────────────────────────────
-log() { echo "[$(date -u +%H:%M:%S)] $*"; }
-
-gf_api() {
-  local method="$1" path="$2"
-  shift 2
-  curl --silent --show-error --fail-with-body \
-    -X "$method" \
-    -H "Authorization: Bearer ${GRAFANA_TOKEN}" \
-    -H "Content-Type: application/json" \
-    -H "X-Disable-Provenance: true" \
-    "${GRAFANA_URL}${path}" \
-    "$@"
-}
-
-# ── 1. Ensure folder exists ───────────────────────────────────────────────────
+# 1. Ensure folder exists
 log "Ensuring folder '${FOLDER_TITLE}' exists (uid=${FOLDER_UID})..."
+gf_ensure_folder "${FOLDER_UID}" "${FOLDER_TITLE}"
 
-FOLDER_RESPONSE=$(gf_api GET "/api/folders/${FOLDER_UID}" 2>/dev/null || true)
-
-if echo "${FOLDER_RESPONSE}" | jq -e '.uid' > /dev/null 2>&1; then
-  log "  Folder already exists"
-else
-  log "  Creating folder..."
-  gf_api POST "/api/folders" \
-    -d "{\"uid\": \"${FOLDER_UID}\", \"title\": \"${FOLDER_TITLE}\"}" > /dev/null
-  log "  Created folder"
-fi
-
-# ── 2. Resolve Prometheus datasource UID ──────────────────────────────────────
+# 2. Resolve Prometheus datasource UID
 log "Resolving Prometheus datasource UID..."
 DATASOURCES=$(gf_api GET "/api/datasources")
 
@@ -91,11 +54,10 @@ fi
 [ -z "${PROM_UID}" ] && { echo "Error: No Prometheus datasource found. Set GRAFANA_PROM_DS." >&2; exit 1; }
 log "  Prometheus UID: ${PROM_UID}"
 
-# ── 3. Convert YAML to Grafana provisioning format and deploy ─────────────────
+# 3. Convert YAML to Grafana provisioning format and deploy
+# Single-quoted heredoc — no shell expansion; values passed via sys.argv.
 log "Parsing alert rules from ${ALERTS_FILE}..."
 
-# Python converts YAML → JSON and transforms each Prometheus-style rule into
-# the Grafana Alerting Provisioning API format.
 GROUPS_JSON=$(python3 - "${ALERTS_FILE}" "${PROM_UID}" "${FOLDER_UID}" <<'PYEOF'
 import json, sys, yaml
 
@@ -168,6 +130,7 @@ def parse_interval(interval_str):
         return int(s[:-1])
     if s.endswith("h"):
         return int(s[:-1]) * 3600
+    print(f"Warning: unrecognised interval '{s}', defaulting to 300s", file=sys.stderr)
     return 300
 
 result = []
@@ -200,6 +163,7 @@ echo "${GROUPS_JSON}" | jq -c '.[]' | while read -r group; do
     '{interval: $interval, rules: $rules}')
 
   gf_api PUT "/api/v1/provisioning/folder/${FOLDER_UID}/rule-groups/${GROUP_NAME}" \
+    -H "X-Disable-Provenance: true" \
     -d "${PAYLOAD}" > /dev/null
 
   log "  Done"

@@ -1,10 +1,9 @@
 # cinc-auditor / InSpec waiver file for dev-sec/linux-baseline
-# Updated against actual scan results on latitude-e6220 (Ubuntu 24.04 LTS)
 #
 # !! HOST-SPECIFIC — review before deploying to other machines !!
-# These waivers reference hardware (Latitude E6220 / Sandy Bridge) and
-# services (Tailscale, media server) specific to one host. Remove or update
-# any entry that does not apply to the target system.
+# The entries below reflect common real-world scenarios (older hardware,
+# Tailscale VPN, home-lab media servers). Remove or update any entry that
+# does not apply to the target system.
 #
 # Format:
 #   <control-id>:
@@ -15,32 +14,32 @@
 # Review quarterly; remove waivers that no longer apply.
 
 # ── CPU vulnerability mitigations (os-12) ────────────────────────────────────
-# The Latitude E6220 (Sandy Bridge, ~2012) has partial Spectre/Meltdown
-# mitigations in the kernel but the /sys/devices/system/cpu/vulnerabilities/
-# directory reports some as "Vulnerable" — this is a hardware limitation,
+# Older hardware (Sandy Bridge era and similar) has partial Spectre/Meltdown
+# mitigations in the kernel, but /sys/devices/system/cpu/vulnerabilities/ may
+# still report some entries as "Vulnerable" — this is a hardware limitation,
 # not a configuration failure.
 os-12:
   expiration_date: "2027-01-01"
-  justification: "Latitude E6220 (Sandy Bridge) has known hardware Spectre/Meltdown limitations; kernel mitigations applied where supported."
+  justification: "Legacy hardware has known Spectre/Meltdown limitations; kernel mitigations applied where supported."
   run: true
 
 # ── Mount options: noexec / nosuid / nodev (os-14, os-15, os-16) ─────────────
-# These controls check that all mountpoints have noexec/nosuid/nodev set.
-# This host runs a personal media server; certain mounts (e.g. /home) need
-# exec to allow running user binaries and media tools.
+# These controls require noexec/nosuid/nodev on all mountpoints.
+# Hosts with user home directories or media mounts need exec bits for
+# user scripts and legitimate tools.
 os-14:
   expiration_date: "2027-01-01"
-  justification: "Home lab media server; /home requires exec for user scripts and cinc-auditor itself."
+  justification: "/home requires exec for user scripts and audit tooling."
   run: true
 
 os-15:
   expiration_date: "2027-01-01"
-  justification: "Home lab; some mounts require suid bits for legitimate tools (su, ping, etc.)."
+  justification: "Some mounts require suid bits for legitimate system tools (su, ping, etc.)."
   run: true
 
 os-16:
   expiration_date: "2027-01-01"
-  justification: "Home lab; some mounts serve device files required by media hardware."
+  justification: "Some mounts serve device files required by hardware peripherals."
   run: true
 
 # ── IPv4 forwarding (sysctl-01) ───────────────────────────────────────────────

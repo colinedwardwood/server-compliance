@@ -56,7 +56,7 @@
         "x": 0,
         "y": 0
       },
-      "id": 23,
+      "id": 24,
       "title": "Host Overview",
       "type": "row"
     },
@@ -97,7 +97,7 @@
         }
       },
       "gridPos": {
-        "h": 9,
+        "h": 12,
         "w": 8,
         "x": 0,
         "y": 0
@@ -131,14 +131,14 @@
         "sparkline": true,
         "textMode": "auto"
       },
-      "pluginVersion": "13.0.0-22326976726.patch2",
+      "pluginVersion": "13.0.0-22478626928.patch2",
       "targets": [
         {
           "datasource": {
             "type": "prometheus",
             "uid": "grafanacloud-prom"
           },
-          "expr": "cinc_auditor_compliance_score{host=~\"$host\", profile=~\"$profile\"} * 100",
+          "expr": "avg(cinc_auditor_compliance_score{host=~\"$host\", profile=~\"$profile\"}) * 100",
           "instant": true,
           "legendFormat": "",
           "refId": "A"
@@ -156,7 +156,7 @@
         "defaults": {
           "color": {
             "fixedColor": "green",
-            "mode": "fixed"
+            "mode": "palette-classic"
           },
           "custom": {
             "hideFrom": {
@@ -178,21 +178,6 @@
                 "id": "color",
                 "value": {
                   "fixedColor": "green",
-                  "mode": "fixed"
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "skipped"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "blue",
                   "mode": "fixed"
                 }
               }
@@ -227,11 +212,26 @@
                 }
               }
             ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "skipped"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "semi-dark-blue",
+                  "mode": "fixed"
+                }
+              }
+            ]
           }
         ]
       },
       "gridPos": {
-        "h": 9,
+        "h": 12,
         "w": 8,
         "x": 8,
         "y": 0
@@ -244,10 +244,13 @@
         ],
         "legend": {
           "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
+          "placement": "right",
+          "showLegend": true,
+          "values": [
+            "value"
+          ]
         },
-        "pieType": "pie",
+        "pieType": "donut",
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
@@ -262,17 +265,19 @@
           "sort": "none"
         }
       },
-      "pluginVersion": "13.0.0-22326976726.patch2",
+      "pluginVersion": "13.0.0-22478626928.patch2",
       "targets": [
         {
+          "app": "grafana-assistant-app",
           "datasource": {
             "type": "prometheus",
             "uid": "grafanacloud-prom"
           },
-          "editorMode": "code",
-          "expr": "cinc_auditor_controls_total{host=~\"$host\", profile=~\"$profile\", status!~\"total\"}",
+          "expr": "sum by (status) (cinc_auditor_controls_total{host=~\"$host\", profile=~\"$profile\", status!~\"total\"})",
           "instant": true,
           "legendFormat": "{{status}}",
+          "queryType": "instant",
+          "range": false,
           "refId": "A"
         }
       ],
@@ -326,14 +331,14 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "13.0.0-22326976726.patch2",
+      "pluginVersion": "13.0.0-22478626928.patch2",
       "targets": [
         {
           "datasource": {
             "type": "prometheus",
             "uid": "grafanacloud-prom"
           },
-          "expr": "cinc_auditor_last_scan_timestamp_seconds{host=~\"$host\", profile=~\"$profile\"} * 1000",
+          "expr": "max(cinc_auditor_last_scan_timestamp_seconds{host=~\"$host\", profile=~\"$profile\"}) * 1000",
           "instant": true,
           "refId": "A"
         }
@@ -388,14 +393,14 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "13.0.0-22326976726.patch2",
+      "pluginVersion": "13.0.0-22478626928.patch2",
       "targets": [
         {
           "datasource": {
             "type": "prometheus",
             "uid": "grafanacloud-prom"
           },
-          "expr": "cinc_auditor_controls_total{host=~\"$host\", profile=~\"$profile\", status=\"total\"}",
+          "expr": "sum(cinc_auditor_controls_total{host=~\"$host\", profile=~\"$profile\", status=\"total\"})",
           "instant": true,
           "refId": "A"
         }
@@ -450,14 +455,14 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "13.0.0-22326976726.patch2",
+      "pluginVersion": "13.0.0-22478626928.patch2",
       "targets": [
         {
           "datasource": {
             "type": "prometheus",
             "uid": "grafanacloud-prom"
           },
-          "expr": "cinc_auditor_scan_duration_seconds{host=~\"$host\", profile=~\"$profile\"}",
+          "expr": "avg(cinc_auditor_scan_duration_seconds{host=~\"$host\", profile=~\"$profile\"})",
           "instant": true,
           "refId": "A"
         }
@@ -466,14 +471,76 @@
       "type": "stat"
     },
     {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "grafanacloud-prom"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": 0
+              }
+            ]
+          }
+        }
+      },
+      "gridPos": {
+        "h": 3,
+        "w": 8,
+        "x": 16,
+        "y": 9
+      },
+      "id": 23,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "name",
+        "wideLayout": true
+      },
+      "pluginVersion": "13.0.0-22478626928.patch2",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "grafanacloud-prom"
+          },
+          "editorMode": "code",
+          "expr": "sum by (host) (cinc_auditor_compliance_score{host=~\"$host\",profile=~\"$profile\"})",
+          "legendFormat": "{{host}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "New panel",
+      "type": "stat"
+    },
+    {
       "collapsed": false,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 9
+        "y": 12
       },
-      "id": 24,
+      "id": 25,
       "title": "Trends",
       "type": "row"
     },
@@ -493,11 +560,12 @@
             "axisColorMode": "text",
             "axisLabel": "",
             "axisPlacement": "auto",
+            "axisSoftMin": 30,
             "barAlignment": 0,
             "barWidthFactor": 0.6,
             "drawStyle": "line",
-            "fillOpacity": 10,
-            "gradientMode": "opacity",
+            "fillOpacity": 0,
+            "gradientMode": "none",
             "hideFrom": {
               "legend": false,
               "tooltip": false,
@@ -510,15 +578,15 @@
             "scaleDistribution": {
               "type": "linear"
             },
-            "showPoints": "auto",
+            "showPoints": "never",
             "showValues": false,
-            "spanNulls": false,
+            "spanNulls": true,
             "stacking": {
               "group": "A",
               "mode": "none"
             },
             "thresholdsStyle": {
-              "mode": "off"
+              "mode": "line"
             }
           },
           "max": 100,
@@ -529,6 +597,10 @@
               {
                 "color": "red",
                 "value": 0
+              },
+              {
+                "color": "orange",
+                "value": 70
               },
               {
                 "color": "yellow",
@@ -547,7 +619,7 @@
         "h": 7,
         "w": 12,
         "x": 0,
-        "y": 9
+        "y": 12
       },
       "id": 16,
       "options": {
@@ -562,19 +634,23 @@
         },
         "tooltip": {
           "hideZeros": false,
-          "mode": "single",
-          "sort": "none"
+          "mode": "multi",
+          "sort": "desc"
         }
       },
-      "pluginVersion": "13.0.0-22326976726.patch2",
+      "pluginVersion": "13.0.0-22478626928.patch2",
       "targets": [
         {
+          "app": "grafana-assistant-app",
           "datasource": {
             "type": "prometheus",
             "uid": "grafanacloud-prom"
           },
           "expr": "cinc_auditor_compliance_score{host=~\"$host\", profile=~\"$profile\"} * 100",
+          "instant": false,
           "legendFormat": "{{profile}}",
+          "queryType": "range",
+          "range": true,
           "refId": "A"
         }
       ],
@@ -614,9 +690,9 @@
             "scaleDistribution": {
               "type": "linear"
             },
-            "showPoints": "auto",
+            "showPoints": "never",
             "showValues": false,
-            "spanNulls": false,
+            "spanNulls": true,
             "stacking": {
               "group": "A",
               "mode": "none"
@@ -693,7 +769,7 @@
         "h": 7,
         "w": 12,
         "x": 12,
-        "y": 9
+        "y": 12
       },
       "id": 17,
       "options": {
@@ -711,33 +787,45 @@
           "sort": "desc"
         }
       },
-      "pluginVersion": "13.0.0-22326976726.patch2",
+      "pluginVersion": "13.0.0-22478626928.patch2",
       "targets": [
         {
+          "app": "grafana-assistant-app",
           "datasource": {
             "type": "prometheus",
             "uid": "grafanacloud-prom"
           },
-          "expr": "cinc_auditor_controls_total{host=~\"$host\", profile=~\"$profile\", status=\"passed\"}",
+          "expr": "sum(cinc_auditor_controls_total{host=~\"$host\", profile=~\"$profile\", status=\"passed\"})",
+          "instant": false,
           "legendFormat": "Passed",
+          "queryType": "range",
+          "range": true,
           "refId": "A"
         },
         {
+          "app": "grafana-assistant-app",
           "datasource": {
             "type": "prometheus",
             "uid": "grafanacloud-prom"
           },
-          "expr": "cinc_auditor_controls_total{host=~\"$host\", profile=~\"$profile\", status=\"failed\"}",
+          "expr": "sum(cinc_auditor_controls_total{host=~\"$host\", profile=~\"$profile\", status=\"failed\"})",
+          "instant": false,
           "legendFormat": "Failed",
+          "queryType": "range",
+          "range": true,
           "refId": "B"
         },
         {
+          "app": "grafana-assistant-app",
           "datasource": {
             "type": "prometheus",
             "uid": "grafanacloud-prom"
           },
-          "expr": "cinc_auditor_controls_total{host=~\"$host\", profile=~\"$profile\", status=\"waived\"}",
+          "expr": "sum(cinc_auditor_controls_total{host=~\"$host\", profile=~\"$profile\", status=\"waived\"})",
+          "instant": false,
           "legendFormat": "Waived",
+          "queryType": "range",
+          "range": true,
           "refId": "C"
         }
       ],
@@ -750,9 +838,9 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 16
+        "y": 19
       },
-      "id": 25,
+      "id": 26,
       "title": "Controls — click a control ID to drill down",
       "type": "row"
     },
@@ -931,17 +1019,12 @@
         "h": 14,
         "w": 14,
         "x": 0,
-        "y": 16
+        "y": 19
       },
       "id": 21,
       "options": {
         "cellHeight": "sm",
-        "footer": {
-          "countRows": false,
-          "enablePagination": false,
-          "reducer": [],
-          "show": false
-        },
+        "enablePagination": true,
         "showHeader": true,
         "sortBy": [
           {
@@ -950,7 +1033,7 @@
           }
         ]
       },
-      "pluginVersion": "13.0.0-22326976726.patch2",
+      "pluginVersion": "13.0.0-22478626928.patch2",
       "targets": [
         {
           "datasource": {
@@ -1020,7 +1103,7 @@
         "h": 14,
         "w": 10,
         "x": 14,
-        "y": 16
+        "y": 19
       },
       "id": 22,
       "options": {
@@ -1037,7 +1120,7 @@
         "unwrappedColumns": false,
         "wrapLogMessage": true
       },
-      "pluginVersion": "13.0.0-22326976726.patch2",
+      "pluginVersion": "13.0.0-22478626928.patch2",
       "targets": [
         {
           "datasource": {
@@ -1093,7 +1176,7 @@
         "type": "query"
       },
       {
-        "allowCustomValue": true,
+        "allowCustomValue": false,
         "current": {
           "text": "",
           "value": ""
@@ -1104,9 +1187,9 @@
         },
         "definition": "label_values(cinc_auditor_compliance_score{host=~\"$host\"}, profile)",
         "hide": 0,
-        "includeAll": false,
+        "includeAll": true,
         "label": "Profile",
-        "multi": false,
+        "multi": true,
         "name": "profile",
         "options": [],
         "query": {
@@ -1143,5 +1226,5 @@
   "timezone": "browser",
   "title": "Linux Compliance — Host",
   "uid": "linux-compliance-host",
-  "version": 24
+  "version": 30
 }

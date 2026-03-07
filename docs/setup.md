@@ -24,7 +24,6 @@ Grafana Cloud
   └─ SLOs with burn-rate alerting
 ```
 
----
 
 ## 1. Prerequisites
 
@@ -34,7 +33,6 @@ On the **Ubuntu host** where scans will run:
 sudo apt update && sudo apt install -y cron git wget shellcheck
 ```
 
----
 
 ## 2. Install cinc-auditor and the compliance-json reporter
 
@@ -55,7 +53,6 @@ a scan summary line. Grafana Alloy tails these files and pushes them to Loki.
 Loki recording rules then derive all Prometheus metrics from the log data —
 no textfile collector or separate metric exporter needed.
 
----
 
 ## 3. Download compliance profiles, inputs, and waivers
 
@@ -84,13 +81,11 @@ sudo cp compliance-profiles/cis-dil-benchmark/waivers.yaml \
   /opt/audit-profiles/cis-dil-benchmark/waivers.yaml
 ```
 
-> **Why CIS over STIG?** STIG targets classified government systems (DoD PKI,
-> CAC readers, specific audit configurations). CIS Level 1 is the right choice
-> for servers in general — it's what most compliance frameworks (SOC 2, ISO 27001,
-> PCI-DSS, HIPAA) reference, and Level 1 is designed not to break legitimate
-> workloads.
+CIS Level 1 is the right choice for general-purpose servers — it's what most
+compliance frameworks (SOC 2, ISO 27001, PCI-DSS, HIPAA) map to, and Level 1 is
+designed not to break legitimate workloads. STIG targets classified government
+systems (DoD PKI, CAC readers) and is too restrictive for most environments.
 
----
 
 ## 4. Set up output directory
 
@@ -100,7 +95,6 @@ sudo chown root:adm /var/log/cinc-auditor
 sudo chmod 755 /var/log/cinc-auditor
 ```
 
----
 
 ## 5. Install the scan script
 
@@ -119,7 +113,6 @@ The script produces two outputs on every run:
 | JSON log lines (one per control + summary) | `/var/log/cinc-auditor/compliance_<profile>_<ts>.log` | Alloy → Loki → recording rules → Prometheus |
 | Raw InSpec JSON report | `/var/log/cinc-auditor/report_<profile>_<ts>.json` | Archive / debugging |
 
----
 
 ## 6. Install the cron jobs
 
@@ -140,7 +133,6 @@ EOF
 sudo crontab -l   # verify
 ```
 
----
 
 ## 7. Set up log rotation
 
@@ -163,7 +155,6 @@ EOF
 > `verify.sh` prunes JSON report files automatically, keeping the last 48 runs
 > per profile, so they do not need logrotate coverage.
 
----
 
 ## 8. Install and configure Grafana Alloy
 
@@ -217,7 +208,6 @@ ls -1 /var/log/cinc-auditor/compliance_*.log
 tail -5 /var/log/cinc-auditor/compliance_linux_baseline_*.log | jq .
 ```
 
----
 
 ## 9. Deploy to Grafana Cloud
 
@@ -233,10 +223,10 @@ cp .env.example .env
 $EDITOR .env
 
 # Deploy everything
-./deploy-recording-rules.sh   # Loki recording rules → Prometheus metrics
-./deploy-dashboards.sh        # 3 dashboards → Compliance folder
-./deploy-alerts.sh            # 12 SAAFE-model alert rules (also needs python3-yaml)
-./deploy-slos.sh              # 2 compliance score SLOs (needs Grafana Cloud SLO feature)
+./scripts/deploy-recording-rules.sh   # Loki recording rules → Prometheus metrics
+./scripts/deploy-dashboards.sh        # 3 dashboards → Compliance folder
+./scripts/deploy-alerts.sh            # 12 SAAFE-model alert rules (also needs python3-yaml)
+./scripts/deploy-slos.sh              # 2 compliance score SLOs (needs Grafana Cloud SLO feature)
 ```
 
 The scripts auto-detect your Prometheus and Loki datasource UIDs. If you have
@@ -250,7 +240,6 @@ GRAFANA_LOKI_DS=grafana-cloud-logs
 Dashboards auto-populate once the first scan has run and Loki recording rules
 have had one evaluation cycle (~5 minutes).
 
----
 
 ## 10. Updating pinned profile versions
 
@@ -274,7 +263,6 @@ sudo cp compliance-profiles/linux-baseline/waivers.yaml \
 Review the profile changelog before upgrading — new controls may introduce
 failures that need waivers.
 
----
 
 ## Metrics reference
 
@@ -289,7 +277,6 @@ All Prometheus metrics are derived from Loki log data via recording rules
 | `cinc_auditor_scan_duration_seconds` | host, profile | How long the last scan took |
 | `cinc_auditor_last_scan_timestamp_seconds` | host, profile | Unix timestamp of last scan |
 
----
 
 ## Loki label reference
 
@@ -327,7 +314,6 @@ Query them with `| json`:
 count_over_time({job="custom/cinc_auditor", status="failed"}[1h])
 ```
 
----
 
 ## Alert rules
 
@@ -349,11 +335,10 @@ organized using the [SAAFE model](https://github.com/grafana/saafe-model):
 | **Saturation** | `ScanHostHighCPU` | info | >90% CPU on a scanned host |
 | **Saturation** | `ScanHostDiskPressure` | warning | <10% disk free on a scanned host |
 
----
 
 ## SLOs (Service Level Objectives)
 
-Defined in `grafana-cloud/slos/compliance-slos.json`, deployed via `./deploy-slos.sh`.
+Defined in `grafana-cloud/slos/compliance-slos.json`, deployed via `./scripts/deploy-slos.sh`.
 Requires Grafana Cloud with the **grafana-slo-app** plugin enabled.
 
 | SLO | Objective | Window |

@@ -19,7 +19,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
-  "id": null,
+  "id": 906890859196416,
   "links": [
     {
       "asDropdown": false,
@@ -155,6 +155,70 @@
       "fieldConfig": {
         "defaults": {
           "color": {
+            "fixedColor": "text",
+            "mode": "fixed"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": 0
+              }
+            ]
+          },
+          "unit": "short"
+        }
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 0,
+        "y": 3
+      },
+      "id": 5,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "name",
+        "wideLayout": true
+      },
+      "pluginVersion": "13.0.0-22478626928.patch2",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "grafanacloud-prom"
+          },
+          "editorMode": "code",
+          "expr": "max by (control, severity) (last_over_time(cinc_auditor_control_status{control=~\"$control\", profile=~\"$profile\", host=~\"$host\"}[$__range]))",
+          "instant": true,
+          "legendFormat": "{{severity}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Severity",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "grafanacloud-prom"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
             "fixedColor": "green",
             "mode": "fixed"
           },
@@ -172,8 +236,8 @@
       },
       "gridPos": {
         "h": 4,
-        "w": 4,
-        "x": 0,
+        "w": 6,
+        "x": 6,
         "y": 3
       },
       "id": 2,
@@ -194,14 +258,14 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "13.0.0-22326976726.patch2",
+      "pluginVersion": "13.0.0-22478626928.patch2",
       "targets": [
         {
           "datasource": {
             "type": "prometheus",
             "uid": "grafanacloud-prom"
           },
-          "expr": "count(cinc_auditor_control_status{control=~\"$control\", profile=~\"$profile\", host=~\"$host\"} == 1)",
+          "expr": "count(last_over_time(cinc_auditor_control_status{control=~\"$control\", profile=~\"$profile\", host=~\"$host\"}[$__range]) == 1)",
           "instant": true,
           "legendFormat": "",
           "refId": "A"
@@ -221,6 +285,7 @@
             "fixedColor": "red",
             "mode": "fixed"
           },
+          "noValue": "0",
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -230,14 +295,13 @@
               }
             ]
           },
-          "unit": "short",
-          "noValue": "0"
+          "unit": "short"
         }
       },
       "gridPos": {
         "h": 4,
-        "w": 4,
-        "x": 4,
+        "w": 6,
+        "x": 12,
         "y": 3
       },
       "id": 3,
@@ -258,14 +322,14 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "13.0.0-22326976726.patch2",
+      "pluginVersion": "13.0.0-22478626928.patch2",
       "targets": [
         {
           "datasource": {
             "type": "prometheus",
             "uid": "grafanacloud-prom"
           },
-          "expr": "count(cinc_auditor_control_status{control=~\"$control\", profile=~\"$profile\", host=~\"$host\"} == 0)",
+          "expr": "count(last_over_time(cinc_auditor_control_status{control=~\"$control\", profile=~\"$profile\", host=~\"$host\"}[$__range]) == 0)",
           "instant": true,
           "legendFormat": "",
           "refId": "A"
@@ -285,6 +349,7 @@
             "fixedColor": "orange",
             "mode": "fixed"
           },
+          "noValue": "0",
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -294,14 +359,13 @@
               }
             ]
           },
-          "unit": "short",
-          "noValue": "0"
+          "unit": "short"
         }
       },
       "gridPos": {
         "h": 4,
-        "w": 4,
-        "x": 8,
+        "w": 6,
+        "x": 18,
         "y": 3
       },
       "id": 4,
@@ -322,83 +386,20 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "13.0.0-22326976726.patch2",
+      "pluginVersion": "13.0.0-22478626928.patch2",
       "targets": [
         {
           "datasource": {
             "type": "prometheus",
             "uid": "grafanacloud-prom"
           },
-          "expr": "count(cinc_auditor_control_status{control=~\"$control\", profile=~\"$profile\", host=~\"$host\"} == -1)",
+          "expr": "count(last_over_time(cinc_auditor_control_status{control=~\"$control\", profile=~\"$profile\", host=~\"$host\"}[$__range]) == -1)",
           "instant": true,
           "legendFormat": "",
           "refId": "A"
         }
       ],
       "title": "Hosts Waived / Skipped",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "grafanacloud-prom"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "fixedColor": "text",
-            "mode": "fixed"
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "text",
-                "value": 0
-              }
-            ]
-          },
-          "unit": "short"
-        }
-      },
-      "gridPos": {
-        "h": 4,
-        "w": 4,
-        "x": 12,
-        "y": 3
-      },
-      "id": 5,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "none",
-        "justifyMode": "center",
-        "orientation": "auto",
-        "percentChangeColorMode": "standard",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "showPercentChange": false,
-        "textMode": "auto",
-        "wideLayout": true
-      },
-      "pluginVersion": "13.0.0-22326976726.patch2",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "grafanacloud-prom"
-          },
-          "expr": "label_replace(cinc_auditor_control_status{control=~\"$control\", profile=~\"$profile\", host=~\"$host\"}, \"__name__\", \"$1\", \"severity\", \"(.*)\")",
-          "instant": true,
-          "legendFormat": "{{severity}}",
-          "refId": "A"
-        }
-      ],
-      "title": "Severity",
       "type": "stat"
     },
     {
@@ -523,13 +524,9 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "Status"
+              "options": "Value"
             },
             "properties": [
-              {
-                "id": "custom.width",
-                "value": 150
-              },
               {
                 "id": "custom.cellOptions",
                 "value": {
@@ -558,14 +555,16 @@
           }
         ]
       },
-      "pluginVersion": "13.0.0-22326976726.patch2",
+      "pluginVersion": "13.0.0-22478626928.patch2",
       "targets": [
         {
           "datasource": {
             "type": "prometheus",
             "uid": "grafanacloud-prom"
           },
-          "expr": "cinc_auditor_control_status{control=~\"$control\", profile=~\"$profile\", host=~\"$host\"}",
+          "editorMode": "code",
+          "expr": "last_over_time(cinc_auditor_control_status{control=~\"$control\", profile=~\"$profile\", host=~\"$host\"}[$__range])",
+          "format": "table",
           "instant": true,
           "legendFormat": "{{host}}",
           "refId": "A"
@@ -574,17 +573,6 @@
       "title": "Current Status by Host — click host to drill in",
       "transformations": [
         {
-          "id": "labelsToFields",
-          "options": {
-            "keepLabels": [
-              "host",
-              "profile",
-              "severity"
-            ],
-            "mode": "columns"
-          }
-        },
-        {
           "id": "organize",
           "options": {
             "excludeByName": {
@@ -592,17 +580,15 @@
               "__name__": true,
               "control": true,
               "instance": true,
-              "job": true
+              "job": true,
+              "profile": true,
+              "severity": true
             },
-            "indexByName": {
-              "Status": 3,
-              "host": 0,
-              "profile": 1,
-              "severity": 2
-            },
+            "includeByName": {},
+            "indexByName": {},
             "renameByName": {
-              "Value": "Status",
-              "Value #A": "Status"
+              "host": "Host",
+              "profile": ""
             }
           }
         }
@@ -718,7 +704,7 @@
           "sort": "none"
         }
       },
-      "pluginVersion": "13.0.0-22326976726.patch2",
+      "pluginVersion": "13.0.0-22478626928.patch2",
       "targets": [
         {
           "datasource": {
@@ -771,14 +757,14 @@
         "unwrappedColumns": false,
         "wrapLogMessage": true
       },
-      "pluginVersion": "13.0.0-22326976726.patch2",
+      "pluginVersion": "13.0.0-22478626928.patch2",
       "targets": [
         {
           "datasource": {
             "type": "loki",
             "uid": "grafanacloud-logs"
           },
-          "expr": "{job=\"custom/cinc_auditor\", instance=~\"$host\", profile=~\"$profile\"} | json | control=~\"$control\"",
+          "expr": "{job=\"custom/cinc_auditor\", profile=~\"$profile\"} | json | control=~\"$control\" | host=~\"$host\"",
           "legendFormat": "",
           "refId": "A"
         }
@@ -904,5 +890,6 @@
   },
   "timezone": "browser",
   "title": "Linux Compliance — Control",
-  "uid": "linux-compliance-control"
+  "uid": "linux-compliance-control",
+  "version": 23
 }

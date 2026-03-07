@@ -45,21 +45,20 @@ ansible/                      Automated deployment to Ubuntu hosts
 
 docs/                         Documentation
   setup.md                      Step-by-step manual setup guide
-  blog-post.md                  Writeup on compliance-as-code with open-source tools
-  relevance-analysis.md         Why this approach matters for practitioners
   next-steps.md                 Ideas for future development
 
 scripts/
+  grafana-lib.sh                Shared Grafana API helpers (sourced by deploy scripts)
+  deploy-alerts.sh              Push alert rules to Grafana Cloud
+  deploy-dashboards.sh          Push dashboards to Grafana Cloud
+  deploy-recording-rules.sh     Push Loki recording rules to Grafana Cloud
+  deploy-slos.sh                Push SLOs to Grafana Cloud
+  validate-grafana.sh           Read back and verify everything deployed to Grafana Cloud
   lint.sh                       shellcheck wrapper (run via `make check`)
 
 config.alloy                  Grafana Alloy configuration (deploy to /etc/alloy/)
 verify.sh                     Compliance scan wrapper script (deploy to /usr/local/bin/)
-deploy-dashboards.sh          Push dashboards to Grafana Cloud
-deploy-alerts.sh              Push alert rules to Grafana Cloud
-deploy-recording-rules.sh     Push Loki recording rules to Grafana Cloud
-deploy-slos.sh                Push SLOs to Grafana Cloud
-.env.example                  Credential template for deploy scripts
-Makefile                      Developer tooling (make check)
+.env.example                  Credential template (Grafana Cloud + Loki)
 ```
 
 ## Quick start
@@ -107,10 +106,12 @@ Requires `curl`, `jq`, and `python3-yaml`.
 cp .env.example .env
 $EDITOR .env   # add GRAFANA_URL and GRAFANA_TOKEN
 
-./deploy-recording-rules.sh   # must run first
-./deploy-dashboards.sh
-./deploy-alerts.sh
-./deploy-slos.sh
+./scripts/deploy-recording-rules.sh   # must run first
+./scripts/deploy-dashboards.sh
+./scripts/deploy-alerts.sh
+./scripts/deploy-slos.sh
+
+./scripts/validate-grafana.sh         # confirm everything landed correctly
 ```
 
 ## Compliance profiles
@@ -139,7 +140,7 @@ on the host.
 ## Developer tooling
 
 ```bash
-make check   # runs shellcheck on all shell scripts
+./scripts/lint.sh   # runs shellcheck on all shell scripts
 ```
 
 ## Credential files (gitignored)

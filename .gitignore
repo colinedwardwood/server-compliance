@@ -1,3 +1,6 @@
+# Blog content (kept local, not published with the repo)
+blog/
+
 # Local credentials — never commit real values
 .env
 grafana-api.key

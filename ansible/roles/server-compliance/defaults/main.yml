@@ -13,15 +13,32 @@ grafana_loki_password: ""
 grafana_prom_url: "https://prometheus-us-central1.grafana.net/api/prom/push"
 grafana_loki_url: "https://logs-prod3.grafana.net/loki/api/v1/push"
 
+# ── cinc-auditor version ───────────────────────────────────────────────────────
+# Passed to the omnitruck installer with -v. Pin to a known-good release.
+# Check https://downloads.cinc.sh/files/stable/cinc-auditor/ for available versions.
+cinc_auditor_version: "6.8.11"
+
+# ── Reporter gem version ───────────────────────────────────────────────────────
+# Must match the VERSION constant in inspec-reporter-compliance-json/lib/.../version.rb
+compliance_json_reporter_version: "0.1.0"
+
 # ── Audit profile locations ────────────────────────────────────────────────────
 audit_profiles_base: "/opt/audit-profiles"
 audit_log_dir: "/var/log/cinc-auditor"
 
 # ── Compliance profiles ────────────────────────────────────────────────────────
 # Each entry is downloaded from GitHub, extracted, and scheduled via cron.
+#
+# When bumping a version:
+#   1. Update repo URL and extracted_dir with the new tag.
+#   2. Download the tarball and recompute the checksum:
+#        curl -sL <repo_url> | sha256sum
+#   3. Update the checksum field below.
+#   Renovate opens PRs for step 1 automatically; steps 2-3 are manual.
 compliance_profiles:
   - name: linux-baseline
     repo: "https://github.com/dev-sec/linux-baseline/archive/refs/tags/2.9.0.tar.gz"
+    checksum: "sha256:8ad2dc0af3beb3c961060ca1c6ea5b805ee7028c6ecafe78d2bb75fae6256b72"
     extracted_dir: "linux-baseline-2.9.0"
     cron_minute: "5"
     cron_hour: "*"
@@ -32,6 +49,7 @@ compliance_profiles:
 
   - name: cis-dil-benchmark
     repo: "https://github.com/dev-sec/cis-dil-benchmark/archive/refs/tags/0.4.12.tar.gz"
+    checksum: "sha256:c1a0edd95084256a47cea300800f22f1e4c21586a2ad09f6ea71c621dcab8441"
     extracted_dir: "cis-dil-benchmark-0.4.12"
     cron_minute: "15"
     cron_hour: "0,6,12,18"

@@ -1,0 +1,53 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": "Renovate config for server-compliance. Watches dev-sec profile releases and bumps the pinned versions in the Ansible defaults file.",
+  "extends": ["config:base"],
+  "timezone": "UTC",
+  "schedule": ["before 6am on monday"],
+  "prConcurrentLimit": 3,
+  "labels": ["dependencies"],
+  "customManagers": [
+    {
+      "description": "dev-sec/linux-baseline profile version in Ansible defaults",
+      "customType": "regex",
+      "fileMatch": ["^ansible/roles/server-compliance/defaults/main\\.yml$"],
+      "matchStrings": [
+        "dev-sec/linux-baseline/archive/refs/tags/(?<currentValue>[\\d.]+)\\.tar\\.gz"
+      ],
+      "datasourceTemplate": "github-releases",
+      "depNameTemplate": "dev-sec/linux-baseline",
+      "versioningTemplate": "semver"
+    },
+    {
+      "description": "dev-sec/cis-dil-benchmark profile version in Ansible defaults",
+      "customType": "regex",
+      "fileMatch": ["^ansible/roles/server-compliance/defaults/main\\.yml$"],
+      "matchStrings": [
+        "dev-sec/cis-dil-benchmark/archive/refs/tags/(?<currentValue>[\\d.]+)\\.tar\\.gz"
+      ],
+      "datasourceTemplate": "github-releases",
+      "depNameTemplate": "dev-sec/cis-dil-benchmark",
+      "versioningTemplate": "semver"
+    }
+  ],
+  "packageRules": [
+    {
+      "description": "Profile version bumps — group both profiles into one PR when both update simultaneously",
+      "matchManagers": ["regex"],
+      "matchPackageNames": ["dev-sec/linux-baseline", "dev-sec/cis-dil-benchmark"],
+      "groupName": "dev-sec compliance profiles",
+      "additionalBranchPrefix": "renovate/",
+      "commitMessagePrefix": "chore(profiles):",
+      "prBodyNotes": [
+        "⚠️ **Manual step required after merging:** update `checksum:` in `defaults/main.yml` for each bumped profile.",
+        "Run: `curl -sL <new_repo_url> | sha256sum` and update the `sha256:` value."
+      ]
+    },
+    {
+      "description": "GitHub Actions — keep action versions up to date",
+      "matchManagers": ["github-actions"],
+      "automerge": false,
+      "commitMessagePrefix": "chore(ci):"
+    }
+  ]
+}

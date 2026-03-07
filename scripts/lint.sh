@@ -6,5 +6,14 @@ if ! command -v shellcheck >/dev/null 2>&1; then
   exit 1
 fi
 
-shellcheck verify.sh deploy-dashboards.sh deploy-alerts.sh deploy-slos.sh deploy-recording-rules.sh
+shellcheck -x \
+  scripts/grafana-lib.sh \
+  scripts/lint.sh \
+  scripts/deploy-alerts.sh \
+  scripts/deploy-dashboards.sh \
+  scripts/deploy-recording-rules.sh \
+  scripts/deploy-slos.sh \
+  scripts/validate-grafana.sh \
+  verify.sh
+
 echo "shellcheck passed."

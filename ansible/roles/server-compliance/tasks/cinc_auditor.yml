@@ -13,7 +13,7 @@
   when: cinc_version_check.rc != 0
 
 - name: Install cinc-auditor
-  ansible.builtin.command: bash /tmp/cinc_install.sh -P cinc-auditor
+  ansible.builtin.command: bash /tmp/cinc_install.sh -P cinc-auditor -v {{ cinc_auditor_version }}
   when: cinc_version_check.rc != 0
   register: cinc_install
   changed_when: cinc_install.rc == 0
@@ -30,7 +30,7 @@
 
 - name: Copy compliance-json reporter plugin source
   ansible.builtin.copy:
-    src: inspec-reporter-compliance-json/
+    src: "{{ playbook_dir }}/../inspec-reporter-compliance-json/"
     dest: /tmp/inspec-reporter-compliance-json/
     mode: "0644"
 
@@ -49,7 +49,9 @@
 
 - name: Install compliance-json reporter plugin
   ansible.builtin.command:
-    cmd: cinc-auditor plugin install /tmp/inspec-reporter-compliance-json/inspec-reporter-compliance-json-0.1.0.gem
+    cmd: >-
+      cinc-auditor plugin install
+      /tmp/inspec-reporter-compliance-json/inspec-reporter-compliance-json-{{ compliance_json_reporter_version }}.gem
   when: "'inspec-reporter-compliance-json' not in plugin_list.stdout"
   register: plugin_install
   changed_when: plugin_install.rc == 0

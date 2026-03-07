@@ -5,6 +5,7 @@
       ansible.builtin.get_url:
         url: "{{ item.repo }}"
         dest: "/tmp/{{ item.name }}.tar.gz"
+        checksum: "{{ item.checksum }}"
         mode: "0644"
       loop: "{{ compliance_profiles }}"
       loop_control:
@@ -40,7 +41,7 @@
 
 - name: Deploy linux-baseline waivers
   ansible.builtin.copy:
-    src: linux-baseline/waivers.yaml
+    src: "{{ playbook_dir }}/../compliance-profiles/linux-baseline/waivers.yaml"
     dest: "{{ audit_profiles_base }}/linux-baseline/waivers.yaml"
     owner: root
     group: root
@@ -48,7 +49,7 @@
 
 - name: Deploy cis-dil-benchmark waivers
   ansible.builtin.copy:
-    src: cis-dil-benchmark/waivers.yaml
+    src: "{{ playbook_dir }}/../compliance-profiles/cis-dil-benchmark/waivers.yaml"
     dest: "{{ audit_profiles_base }}/cis-dil-benchmark/waivers.yaml"
     owner: root
     group: root
@@ -56,7 +57,7 @@
 
 - name: Deploy cis-dil-benchmark inputs
   ansible.builtin.copy:
-    src: cis-dil-benchmark/inputs.yaml
+    src: "{{ playbook_dir }}/../compliance-profiles/cis-dil-benchmark/inputs.yaml"
     dest: "{{ audit_profiles_base }}/cis-dil-benchmark/inputs.yaml"
     owner: root
     group: root

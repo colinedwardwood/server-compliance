@@ -3,8 +3,8 @@
 # Creates or updates SLOs via the Grafana SLO plugin API.
 #
 # Usage:
-#   ./deploy-slos.sh
-#   GRAFANA_URL=https://foo.grafana.net GRAFANA_TOKEN=glsa_... ./deploy-slos.sh
+#   ./scripts/deploy-slos.sh
+#   GRAFANA_URL=https://foo.grafana.net GRAFANA_TOKEN=glsa_... ./scripts/deploy-slos.sh
 #
 # Note: SLOs require Grafana Cloud with the SLO feature enabled.
 #       The grafana-slo-app plugin must be installed in your stack.
@@ -12,47 +12,23 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
-# ── Credentials ───────────────────────────────────────────────────────────────
-ENV_FILE="${SCRIPT_DIR}/.env"
-if [ -f "${ENV_FILE}" ]; then
-  # shellcheck source=/dev/null
-  set -a; source "${ENV_FILE}"; set +a
-fi
+# shellcheck source=scripts/grafana-lib.sh
+source "${SCRIPT_DIR}/grafana-lib.sh"
 
-GRAFANA_URL="${GRAFANA_URL:-}"
-GRAFANA_TOKEN="${GRAFANA_TOKEN:-}"
+gf_load_env "${REPO_DIR}"
 
-if [ -z "${GRAFANA_URL}" ] || [ -z "${GRAFANA_TOKEN}" ]; then
-  echo "Error: GRAFANA_URL and GRAFANA_TOKEN must be set (via environment or .env file)." >&2
-  echo "  Copy .env.example to .env and fill in your values, or set the env vars directly." >&2
-  exit 1
-fi
-
-SLOS_FILE="${SCRIPT_DIR}/grafana-cloud/slos/compliance-slos.json"
+SLOS_FILE="${REPO_DIR}/grafana-cloud/slos/compliance-slos.json"
 
 if [ ! -f "${SLOS_FILE}" ]; then
   echo "Error: SLO definitions file not found: ${SLOS_FILE}" >&2
   exit 1
 fi
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
-log() { echo "[$(date -u +%H:%M:%S)] $*"; }
-
 SLO_API="/api/plugins/grafana-slo-app/resources/v1/slo"
 
-gf_api() {
-  local method="$1" path="$2"
-  shift 2
-  curl --silent --show-error --fail-with-body \
-    -X "$method" \
-    -H "Authorization: Bearer ${GRAFANA_TOKEN}" \
-    -H "Content-Type: application/json" \
-    "${GRAFANA_URL}${path}" \
-    "$@"
-}
-
-# ── 1. Check SLO plugin availability ─────────────────────────────────────────
+# 1. Check SLO plugin availability
 log "Checking SLO plugin availability..."
 
 SLO_CHECK=$(gf_api GET "${SLO_API}" 2>/dev/null || echo "UNAVAILABLE")
@@ -67,7 +43,7 @@ fi
 
 log "  SLO plugin is available"
 
-# ── 2. Resolve Prometheus datasource UID ──────────────────────────────────────
+# 2. Resolve Prometheus datasource UID
 log "Resolving Prometheus datasource UID..."
 DATASOURCES=$(gf_api GET "/api/datasources")
 
@@ -83,11 +59,11 @@ fi
 [ -z "${PROM_UID}" ] && { echo "Error: No Prometheus datasource found. Set GRAFANA_PROM_DS." >&2; exit 1; }
 log "  Prometheus UID: ${PROM_UID}"
 
-# ── 3. Fetch existing SLOs to enable upsert ───────────────────────────────────
+# 3. Fetch existing SLOs to enable upsert
 log "Fetching existing SLOs..."
 EXISTING_SLOS=$(echo "${SLO_CHECK}" | jq -r '.slos // []')
 
-# ── 4. Deploy each SLO ───────────────────────────────────────────────────────
+# 4. Deploy each SLO
 SLO_COUNT=$(jq 'length' "${SLOS_FILE}")
 log "Deploying ${SLO_COUNT} SLOs..."
 
