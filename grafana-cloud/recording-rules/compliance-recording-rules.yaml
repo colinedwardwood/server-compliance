@@ -6,16 +6,37 @@
 # Deploy with: ./deploy-recording-rules.sh
 
 groups:
-  - name: compliance-per-control
+  - name: compliance-per-control-linux-baseline
     interval: 5m
     rules:
-      # Per-control status gauge: 1=passed, 0=failed, -1=skipped, -2=waived
+      # Per-control failed status for linux-baseline.
+      # Filtered to failed-only to stay under Loki's 500 series limit
+      # (~15 failing controls × 10 hosts = ~150 series).
       - record: cinc_auditor_control_status
         expr: |
           last_over_time(
             {job="custom/cinc_auditor"}
               | json
               | type="control"
+              | profile="linux-baseline"
+              | status="failed"
+              | unwrap status_val [2h]
+          ) by (host, profile, control, severity)
+
+  - name: compliance-per-control-cis-dil-benchmark
+    interval: 5m
+    rules:
+      # Per-control failed status for cis-dil-benchmark.
+      # Filtered to failed-only to stay under Loki's 500 series limit
+      # (~60 failing controls × 10 hosts = ~600 max, shrinks as waivers apply).
+      - record: cinc_auditor_control_status
+        expr: |
+          last_over_time(
+            {job="custom/cinc_auditor"}
+              | json
+              | type="control"
+              | profile="cis-dil-benchmark"
+              | status="failed"
               | unwrap status_val [2h]
           ) by (host, profile, control, severity)
 
