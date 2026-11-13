@@ -68,8 +68,12 @@ module InspecPlugins
       private
 
       def determine_status(control)
-        wd = control[:waiver_data] || {}
-        if wd.is_a?(Hash) && wd.length.positive?
+        # run_data passes waiver_data as an Inspec::RunData::Control::WaiverData
+        # Struct (HashLikeStruct), not a Hash. Controls without a waiver still get
+        # a WaiverData with every field nil. Expired waivers keep their fields, but
+        # InSpec evaluates the control normally and sets an "expired" message.
+        wd = control[:waiver_data]
+        if wd && !wd[:justification].nil? && !wd[:message].to_s.match?(/expired/i)
           return wd[:skipped_due_to_waiver] ? "skipped" : "waived"
         end
 
