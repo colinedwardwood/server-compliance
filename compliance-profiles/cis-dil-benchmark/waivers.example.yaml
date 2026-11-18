@@ -1,5 +1,11 @@
 # CIS DIL Benchmark — example waivers for Ubuntu 24.04
 #
+# EXAMPLE FILE — nothing here is deployed as-is.
+# To use waivers, copy this file to waivers.yaml in the same directory, keep only the
+# entries that apply to your hosts, and set your own expiration dates. The Ansible role
+# and verify.sh only pick up waivers.yaml; without it every control counts normally.
+# When a waiver's expiration_date passes, the control counts normally again.
+#
 # !! HOST-SPECIFIC — review before deploying to other machines !!
 # The entries below reflect common real-world scenarios (partition layout,
 # time-sync choice, hardware differences). Audit and update these before

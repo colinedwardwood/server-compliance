@@ -1,4 +1,22 @@
 {
+  "__inputs": [
+    {
+      "name": "DS_PROMETHEUS",
+      "label": "Prometheus",
+      "description": "Prometheus datasource holding the cinc_auditor_* recorded metrics",
+      "type": "datasource",
+      "pluginId": "prometheus",
+      "pluginName": "Prometheus"
+    },
+    {
+      "name": "DS_LOKI",
+      "label": "Loki",
+      "description": "Loki datasource receiving the {job=\"custom/cinc_auditor\"} logs",
+      "type": "datasource",
+      "pluginId": "loki",
+      "pluginName": "Loki"
+    }
+  ],
   "annotations": {
     "list": [
       {
@@ -63,7 +81,7 @@
     {
       "datasource": {
         "type": "loki",
-        "uid": "grafanacloud-logs"
+        "uid": "${DS_LOKI}"
       },
       "fieldConfig": {
         "defaults": {
@@ -110,7 +128,7 @@
         {
           "datasource": {
             "type": "loki",
-            "uid": "grafanacloud-logs"
+            "uid": "${DS_LOKI}"
           },
           "direction": "backward",
           "editorMode": "code",
@@ -150,7 +168,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "grafanacloud-prom"
+        "uid": "${DS_PROMETHEUS}"
       },
       "fieldConfig": {
         "defaults": {
@@ -199,7 +217,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "grafanacloud-prom"
+            "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
           "expr": "max by (control, severity) (last_over_time(cinc_auditor_control_status{control=~\"$control\", profile=~\"$profile\", host=~\"$host\"}[$__range]))",
@@ -213,8 +231,8 @@
     },
     {
       "datasource": {
-        "type": "prometheus",
-        "uid": "grafanacloud-prom"
+        "type": "loki",
+        "uid": "${DS_LOKI}"
       },
       "fieldConfig": {
         "defaults": {
@@ -262,12 +280,12 @@
       "targets": [
         {
           "datasource": {
-            "type": "prometheus",
-            "uid": "grafanacloud-prom"
+            "type": "loki",
+            "uid": "${DS_LOKI}"
           },
-          "expr": "count(last_over_time(cinc_auditor_control_status{control=~\"$control\", profile=~\"$profile\", host=~\"$host\"}[$__range]) == 1)",
-          "instant": true,
-          "legendFormat": "",
+          "editorMode": "code",
+          "expr": "count(last_over_time({job=\"custom/cinc_auditor\", profile=~\"$profile\", host=~\"$host\"} |= \"\\\"type\\\":\\\"control\\\"\" | json | type=\"control\" | control=~\"$control\" | unwrap status_val [$__range]) by (host, profile, control) == 1)",
+          "queryType": "instant",
           "refId": "A"
         }
       ],
@@ -276,8 +294,8 @@
     },
     {
       "datasource": {
-        "type": "prometheus",
-        "uid": "grafanacloud-prom"
+        "type": "loki",
+        "uid": "${DS_LOKI}"
       },
       "fieldConfig": {
         "defaults": {
@@ -326,12 +344,12 @@
       "targets": [
         {
           "datasource": {
-            "type": "prometheus",
-            "uid": "grafanacloud-prom"
+            "type": "loki",
+            "uid": "${DS_LOKI}"
           },
-          "expr": "count(last_over_time(cinc_auditor_control_status{control=~\"$control\", profile=~\"$profile\", host=~\"$host\"}[$__range]) == 0)",
-          "instant": true,
-          "legendFormat": "",
+          "editorMode": "code",
+          "expr": "count(last_over_time({job=\"custom/cinc_auditor\", profile=~\"$profile\", host=~\"$host\"} |= \"\\\"type\\\":\\\"control\\\"\" | json | type=\"control\" | control=~\"$control\" | unwrap status_val [$__range]) by (host, profile, control) == 0)",
+          "queryType": "instant",
           "refId": "A"
         }
       ],
@@ -340,8 +358,8 @@
     },
     {
       "datasource": {
-        "type": "prometheus",
-        "uid": "grafanacloud-prom"
+        "type": "loki",
+        "uid": "${DS_LOKI}"
       },
       "fieldConfig": {
         "defaults": {
@@ -390,17 +408,18 @@
       "targets": [
         {
           "datasource": {
-            "type": "prometheus",
-            "uid": "grafanacloud-prom"
+            "type": "loki",
+            "uid": "${DS_LOKI}"
           },
-          "expr": "count(last_over_time(cinc_auditor_control_status{control=~\"$control\", profile=~\"$profile\", host=~\"$host\"}[$__range]) == -1)",
-          "instant": true,
-          "legendFormat": "",
+          "editorMode": "code",
+          "expr": "count(last_over_time({job=\"custom/cinc_auditor\", profile=~\"$profile\", host=~\"$host\"} |= \"\\\"type\\\":\\\"control\\\"\" | json | type=\"control\" | control=~\"$control\" | unwrap status_val [$__range]) by (host, profile, control) < 0)",
+          "queryType": "instant",
           "refId": "A"
         }
       ],
       "title": "Hosts Waived / Skipped",
-      "type": "stat"
+      "type": "stat",
+      "description": "Hosts where this control was waived (-2) or skipped (-1) in the latest scan in range."
     },
     {
       "collapsed": false,
@@ -416,8 +435,8 @@
     },
     {
       "datasource": {
-        "type": "prometheus",
-        "uid": "grafanacloud-prom"
+        "type": "loki",
+        "uid": "${DS_LOKI}"
       },
       "fieldConfig": {
         "defaults": {
@@ -436,24 +455,29 @@
           },
           "mappings": [
             {
+              "type": "value",
               "options": {
-                "-1": {
+                "-2": {
                   "color": "orange",
                   "index": 0,
-                  "text": "Waived / Skipped"
+                  "text": "Waived"
+                },
+                "-1": {
+                  "color": "yellow",
+                  "index": 1,
+                  "text": "Skipped"
                 },
                 "0": {
                   "color": "red",
-                  "index": 1,
+                  "index": 2,
                   "text": "Failed"
                 },
                 "1": {
                   "color": "green",
-                  "index": 2,
+                  "index": 3,
                   "text": "Passed"
                 }
-              },
-              "type": "value"
+              }
             }
           ],
           "thresholds": {
@@ -559,15 +583,14 @@
       "targets": [
         {
           "datasource": {
-            "type": "prometheus",
-            "uid": "grafanacloud-prom"
+            "type": "loki",
+            "uid": "${DS_LOKI}"
           },
           "editorMode": "code",
-          "expr": "last_over_time(cinc_auditor_control_status{control=~\"$control\", profile=~\"$profile\", host=~\"$host\"}[$__range])",
-          "format": "table",
-          "instant": true,
-          "legendFormat": "{{host}}",
-          "refId": "A"
+          "expr": "last_over_time({job=\"custom/cinc_auditor\", profile=~\"$profile\", host=~\"$host\"} |= \"\\\"type\\\":\\\"control\\\"\" | json | type=\"control\" | control=~\"$control\" | unwrap status_val [$__range]) by (host, profile, control, severity)",
+          "queryType": "instant",
+          "refId": "A",
+          "format": "table"
         }
       ],
       "title": "Current Status by Host — click host to drill in",
@@ -598,7 +621,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "grafanacloud-prom"
+        "uid": "${DS_PROMETHEUS}"
       },
       "fieldConfig": {
         "defaults": {
@@ -709,7 +732,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "grafanacloud-prom"
+            "uid": "${DS_PROMETHEUS}"
           },
           "expr": "cinc_auditor_control_status{control=~\"$control\", profile=~\"$profile\", host=~\"$host\"}",
           "legendFormat": "{{host}}",
@@ -734,7 +757,7 @@
     {
       "datasource": {
         "type": "loki",
-        "uid": "grafanacloud-logs"
+        "uid": "${DS_LOKI}"
       },
       "gridPos": {
         "h": 10,
@@ -762,7 +785,7 @@
         {
           "datasource": {
             "type": "loki",
-            "uid": "grafanacloud-logs"
+            "uid": "${DS_LOKI}"
           },
           "expr": "{job=\"custom/cinc_auditor\", profile=~\"$profile\"} | json | control=~\"$control\" | host=~\"$host\"",
           "legendFormat": "",
@@ -792,7 +815,7 @@
         },
         "datasource": {
           "type": "prometheus",
-          "uid": "grafanacloud-prom"
+          "uid": "${DS_PROMETHEUS}"
         },
         "definition": "label_values(cinc_auditor_control_status, control)",
         "hide": 0,
@@ -820,7 +843,7 @@
         },
         "datasource": {
           "type": "prometheus",
-          "uid": "grafanacloud-prom"
+          "uid": "${DS_PROMETHEUS}"
         },
         "definition": "label_values(cinc_auditor_control_status{control=~\"$control\"}, profile)",
         "hide": 0,
@@ -848,7 +871,7 @@
         },
         "datasource": {
           "type": "prometheus",
-          "uid": "grafanacloud-prom"
+          "uid": "${DS_PROMETHEUS}"
         },
         "definition": "label_values(cinc_auditor_control_status{control=~\"$control\", profile=~\"$profile\"}, host)",
         "hide": 0,

@@ -3,15 +3,22 @@
 # These rules run server-side in Grafana Cloud Loki and write their results
 # as Prometheus metrics. They replace the local textfile collector approach.
 #
-# Deploy with: ./deploy-recording-rules.sh
+# Deploy with: ./scripts/deploy-recording-rules.sh
 #
-# Windows (2026-11-18): CIS runs once a day (02:00-05:00 host time, staggered per host),
-# CVE profiles every 3 h, and linux-baseline is no longer scheduled. last_over_time windows
-# must exceed the longest gap between two scans of a profile on a host (24 h + scan-duration
-# drift + 1 h on the DST fall-back day), or the metrics drop out between scans: 26h.
-# cinc_auditor_last_scan_timestamp_seconds keeps 7d so ComplianceScanStale (> 26 h) still
-# has a series to fire on after scans stop. The line filters skip json parsing of
-# non-matching lines, which keeps the longer windows cheap.
+# ${COMPLIANCE_WINDOW} is substituted at deploy time (from .env; default 13h).
+# Every last_over_time window must be longer than the longest interval between two
+# scans of the same profile on a host, or the metrics disappear between scans:
+#   - shipped schedule (linux-baseline hourly, cis-dil-benchmark every 6 h): 13h
+#   - daily scans: 26h (24 h + scan duration + the extra hour on a DST change)
+# Trade-off: a control that was failing and is fixed keeps its failed series until
+# its last failing line leaves the window.
+#
+# cinc_auditor_last_scan_timestamp_seconds uses a fixed 7d window so that
+# ComplianceScanStale still has a series to fire on after scans stop. After 7 days
+# without any scan the series disappears and the alert resolves.
+#
+# The |= line filters skip JSON parsing of lines that can't match, which keeps the
+# longer windows cheap.
 
 groups:
   - name: compliance-per-control-linux-baseline
@@ -24,18 +31,18 @@ groups:
         expr: |
           last_over_time(
             {job="custom/cinc_auditor"}
+              |= "\"status\":\"failed\""
               | json
               | type="control"
               | profile="linux-baseline"
               | status="failed"
-              | unwrap status_val [2h]
+              | unwrap status_val [${COMPLIANCE_WINDOW}]
           ) by (host, profile, control, severity)
 
   - name: compliance-per-control-cis-dil-benchmark
     interval: 5m
     rules:
-      # Per-control failed status for cis-dil-benchmark. A control fixed since its last failing
-      # scan drops out when that line leaves the 26h window (~2 h after the next daily scan).
+      # Per-control failed status for cis-dil-benchmark.
       # Filtered to failed-only to stay under Loki's 500 series limit
       # (~60 failing controls × 10 hosts = ~600 max, shrinks as waivers apply).
       - record: cinc_auditor_control_status
@@ -47,7 +54,7 @@ groups:
               | type="control"
               | profile="cis-dil-benchmark"
               | status="failed"
-              | unwrap status_val [26h]
+              | unwrap status_val [${COMPLIANCE_WINDOW}]
           ) by (host, profile, control, severity)
 
   - name: compliance-aggregates
@@ -61,7 +68,7 @@ groups:
               |= "\"type\":\"scan_summary\""
               | json
               | type="scan_summary"
-              | unwrap score [26h]
+              | unwrap score [${COMPLIANCE_WINDOW}]
           ) by (host, profile)
 
       # Control counts by status
@@ -74,7 +81,7 @@ groups:
               |= "\"type\":\"scan_summary\""
               | json
               | type="scan_summary"
-              | unwrap passed [26h]
+              | unwrap passed [${COMPLIANCE_WINDOW}]
           ) by (host, profile)
 
       - record: cinc_auditor_controls_total
@@ -86,7 +93,7 @@ groups:
               |= "\"type\":\"scan_summary\""
               | json
               | type="scan_summary"
-              | unwrap failed [26h]
+              | unwrap failed [${COMPLIANCE_WINDOW}]
           ) by (host, profile)
 
       - record: cinc_auditor_controls_total
@@ -98,7 +105,7 @@ groups:
               |= "\"type\":\"scan_summary\""
               | json
               | type="scan_summary"
-              | unwrap waived [26h]
+              | unwrap waived [${COMPLIANCE_WINDOW}]
           ) by (host, profile)
 
       - record: cinc_auditor_controls_total
@@ -110,7 +117,7 @@ groups:
               |= "\"type\":\"scan_summary\""
               | json
               | type="scan_summary"
-              | unwrap skipped [26h]
+              | unwrap skipped [${COMPLIANCE_WINDOW}]
           ) by (host, profile)
 
       - record: cinc_auditor_controls_total
@@ -122,7 +129,7 @@ groups:
               |= "\"type\":\"scan_summary\""
               | json
               | type="scan_summary"
-              | unwrap total [26h]
+              | unwrap total [${COMPLIANCE_WINDOW}]
           ) by (host, profile)
 
       # Scan duration in seconds
@@ -133,10 +140,10 @@ groups:
               |= "\"type\":\"scan_summary\""
               | json
               | type="scan_summary"
-              | unwrap duration [26h]
+              | unwrap duration [${COMPLIANCE_WINDOW}]
           ) by (host, profile)
 
-      # Unix timestamp of the last completed scan (7d window: see header)
+      # Unix timestamp of the last completed scan (fixed 7d window; see header)
       - record: cinc_auditor_last_scan_timestamp_seconds
         expr: |
           last_over_time(

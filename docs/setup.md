@@ -37,7 +37,7 @@ sudo apt update && sudo apt install -y cron git wget shellcheck
 ## 2. Install cinc-auditor and the compliance-json reporter
 
 ```bash
-curl -L https://omnitruck.cinc.sh/install.sh | sudo bash -s -- -P cinc-auditor -v 4
+curl -L https://omnitruck.cinc.sh/install.sh | sudo bash -s -- -P cinc-auditor -v 6.8.11
 cinc-auditor version   # verify
 
 # Build and install the custom reporter plugin using cinc-auditor's embedded Ruby
@@ -69,14 +69,24 @@ sudo mkdir -p /opt/audit-profiles
 # linux-baseline (quick hourly check) — pinned to v2.9.0
 sudo git clone --branch 2.9.0 --depth 1 \
   https://github.com/dev-sec/linux-baseline /opt/audit-profiles/linux-baseline
-sudo cp compliance-profiles/linux-baseline/waivers.yaml \
-  /opt/audit-profiles/linux-baseline/waivers.yaml
 
 # CIS Distribution-Independent Linux Level 1 — pinned to v0.4.12
 sudo git clone --branch 0.4.12 --depth 1 \
   https://github.com/dev-sec/cis-dil-benchmark /opt/audit-profiles/cis-dil-benchmark
 sudo cp compliance-profiles/cis-dil-benchmark/inputs.yaml \
   /opt/audit-profiles/cis-dil-benchmark/inputs.yaml
+```
+
+**Waivers (optional).** Nothing is waived by default. `compliance-profiles/<profile>/`
+contains a `waivers.example.yaml` with common justifications. To waive controls that
+don't apply to your hosts, copy it to `waivers.yaml`, keep only the relevant entries,
+set your own expiration dates, and install it next to the profile; `verify.sh` passes
+`--waiver-file` automatically when `/opt/audit-profiles/<profile>/waivers.yaml` exists.
+
+```bash
+cp compliance-profiles/cis-dil-benchmark/waivers.example.yaml \
+   compliance-profiles/cis-dil-benchmark/waivers.yaml
+$EDITOR compliance-profiles/cis-dil-benchmark/waivers.yaml
 sudo cp compliance-profiles/cis-dil-benchmark/waivers.yaml \
   /opt/audit-profiles/cis-dil-benchmark/waivers.yaml
 ```
@@ -174,17 +184,19 @@ sudo apt update && sudo apt install -y alloy
 
 ### 8b. Store credentials securely
 
-`config.alloy` reads credentials from environment variables so they are
-never hard-coded in the config file.
+`config.alloy` reads the endpoints and credentials from environment variables, so
+the file itself contains nothing specific to your stack.
 
 ```bash
-# Find your instance IDs and tokens at:
-#   Grafana Cloud → Your Stack → Grafana Data Sources → Prometheus / Loki
+# Find the URLs and user IDs at Grafana Cloud → Your Stack → Prometheus / Loki → Details.
+# The passwords are access-policy tokens with metrics:write / logs:write.
 sudo tee /etc/default/alloy > /dev/null <<'EOF'
-PROM_USERNAME=<your-prometheus-instance-id>
-PROM_PASSWORD=<your-prometheus-api-token>
-LOKI_USERNAME=<your-loki-instance-id>
-LOKI_PASSWORD=<your-loki-api-token>
+PROM_URL=https://prometheus-<region>.grafana.net/api/prom/push
+PROM_USERNAME=<your-prometheus-user-id>
+PROM_PASSWORD=<your-metrics-write-token>
+LOKI_URL=https://logs-<region>.grafana.net/loki/api/v1/push
+LOKI_USERNAME=<your-loki-user-id>
+LOKI_PASSWORD=<your-logs-write-token>
 EOF
 
 sudo chmod 600 /etc/default/alloy
@@ -222,6 +234,10 @@ Run these scripts from your **local machine** (not the Ubuntu host).
 cp .env.example .env
 $EDITOR .env
 
+# Optional, in .env: COMPLIANCE_WINDOW (default 13h) must be longer than the longest
+# interval between two scans of a profile. Keep 13h for the schedule in section 6;
+# use 26h if you scan once a day. See .env.example.
+
 # Deploy everything
 ./scripts/deploy-recording-rules.sh   # Loki recording rules → Prometheus metrics
 ./scripts/deploy-dashboards.sh        # 3 dashboards → Compliance folder
@@ -233,9 +249,14 @@ The scripts auto-detect your Prometheus and Loki datasource UIDs. If you have
 multiple datasources of the same type, pin them explicitly in `.env`:
 
 ```bash
-GRAFANA_PROM_DS=grafana-cloud-prom
-GRAFANA_LOKI_DS=grafana-cloud-logs
+GRAFANA_PROM_DS=grafanacloud-<stack>-prom
+GRAFANA_LOKI_DS=grafanacloud-<stack>-logs
 ```
+
+Auto-detection prefers Grafana Cloud's primary datasources (uid `grafanacloud-prom` /
+`grafanacloud-logs`). The dashboards use `${DS_PROMETHEUS}` / `${DS_LOKI}` placeholders,
+which the deploy script fills in; when importing them through the UI instead, Grafana
+asks you to pick the datasources.
 
 Dashboards auto-populate once the first scan has run and Loki recording rules
 have had one evaluation cycle (~5 minutes).
@@ -256,6 +277,7 @@ To upgrade:
 sudo rm -rf /opt/audit-profiles/linux-baseline
 sudo git clone --branch <new-tag> --depth 1 \
   https://github.com/dev-sec/linux-baseline /opt/audit-profiles/linux-baseline
+# Only if you keep waivers for this profile:
 sudo cp compliance-profiles/linux-baseline/waivers.yaml \
   /opt/audit-profiles/linux-baseline/waivers.yaml
 ```
@@ -273,9 +295,14 @@ All Prometheus metrics are derived from Loki log data via recording rules
 |--------|--------|-------------|
 | `cinc_auditor_compliance_score` | host, profile | Fraction passing (0.0–1.0), excluding waived/skipped |
 | `cinc_auditor_controls_total` | host, profile, status | Count by passed/failed/waived/skipped/total |
-| `cinc_auditor_control_status` | host, profile, control, severity | 1=passed, 0=failed, -1=skipped, -2=waived |
+| `cinc_auditor_control_status` | host, profile, control, severity | Failed controls only (value 0), to stay within Loki's series limit; passed/skipped/waived results are queried from the logs |
 | `cinc_auditor_scan_duration_seconds` | host, profile | How long the last scan took |
 | `cinc_auditor_last_scan_timestamp_seconds` | host, profile | Unix timestamp of last scan |
+
+
+The `last_over_time` windows in the recording rules are set at deploy time from
+`COMPLIANCE_WINDOW` (default `13h`); the last-scan timestamp uses a fixed `7d`. In the
+logs, `status_val` is 1=passed, 0=failed, -1=skipped, -2=waived.
 
 
 ## Loki label reference
@@ -322,7 +349,7 @@ organized using the [SAAFE model](https://github.com/grafana/saafe-model):
 
 | Category | Alert | Severity | What it catches |
 |----------|-------|----------|-----------------|
-| **Failure** | `ComplianceScanStale` | critical | No scan results in >2 hours |
+| **Failure** | `ComplianceScanStale` | critical | No scan results for longer than `COMPLIANCE_WINDOW` (default 13 h) |
 | **Failure** | `ComplianceScoreZero` | critical | 0% compliance score (total breakdown) |
 | **Failure** | `CriticalControlFailing` | critical | Any critical-severity control failing |
 | **Error** | `ComplianceScoreLow` | warning | Score below 90% for >30 min |

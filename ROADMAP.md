@@ -1,4 +1,4 @@
-# ROADMAP.md
+# Roadmap
 
 ## v1.0.0
 
@@ -6,7 +6,7 @@
 - add licensing
 - add versioning to the project
 - Increase test coverage
-- add CI/CD pipeline 
+- add CI/CD pipeline
 - create tutorial + video
 
 
@@ -18,8 +18,8 @@
 - add support for other compliance profiles
 - add support for other compliance frameworks
 - add support for other compliance tools
-  - trivvy
-  - prowlar
+  - Trivy
+  - Prowler
 
 ## v2.0.0
 - add mapping to governance standards like ISO 27001, SOC 2, GDPR, etc.

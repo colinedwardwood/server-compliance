@@ -1,27 +1,33 @@
-// ── Credentials ──────────────────────────────────────────────────────────────
-// Load sensitive values from environment variables instead of hard-coding them.
-// Set these in the alloy systemd service environment or /etc/default/alloy:
-//   PROM_USERNAME, PROM_PASSWORD, LOKI_USERNAME, LOKI_PASSWORD
+// ── Endpoints and credentials ────────────────────────────────────────────────
+// Read from environment variables, so this file has nothing stack-specific in it.
+// Set them in the alloy systemd service environment, e.g. /etc/default/alloy (mode 0600):
+//   PROM_URL       Prometheus remote-write URL, e.g. https://prometheus-<region>.grafana.net/api/prom/push
+//   PROM_USERNAME  Prometheus (Mimir) user ID
+//   PROM_PASSWORD  access-policy token with metrics:write
+//   LOKI_URL       Loki push URL, e.g. https://logs-<region>.grafana.net/loki/api/v1/push
+//   LOKI_USERNAME  Loki user ID
+//   LOKI_PASSWORD  access-policy token with logs:write
+// Grafana Cloud shows the URLs and user IDs under your stack → Prometheus / Loki → Details.
 
 // ── Remote Write Endpoints ────────────────────────────────────────────────────
 prometheus.remote_write "metrics_service" {
   endpoint {
-    url = "https://prometheus-us-central1.grafana.net/api/prom/push"
+    url = sys.env("PROM_URL")
 
     basic_auth {
-      username = env("PROM_USERNAME")
-      password = env("PROM_PASSWORD")
+      username = sys.env("PROM_USERNAME")
+      password = sys.env("PROM_PASSWORD")
     }
   }
 }
 
 loki.write "grafana_cloud_loki" {
   endpoint {
-    url = "https://logs-prod3.grafana.net/loki/api/v1/push"
+    url = sys.env("LOKI_URL")
 
     basic_auth {
-      username = env("LOKI_USERNAME")
-      password = env("LOKI_PASSWORD")
+      username = sys.env("LOKI_USERNAME")
+      password = sys.env("LOKI_PASSWORD")
     }
   }
 }
@@ -186,25 +192,6 @@ declare "journal_module" {
   loki.process "default" {
     forward_to = argument.forward_to.value
   }
-}
-
-// ── Tailscale Metrics ─────────────────────────────────────────────────────────
-discovery.relabel "custom_tailscale" {
-  targets = [{"__address__" = "100.100.100.100"}]
-
-  rule {
-    target_label = "instance"
-    replacement  = constants.hostname
-  }
-  rule {
-    target_label = "job"
-    replacement  = "custom/tailscale"
-  }
-}
-
-prometheus.scrape "custom_tailscale" {
-  targets    = discovery.relabel.custom_tailscale.output
-  forward_to = [prometheus.remote_write.metrics_service.receiver]
 }
 
 // ── Cinc-Auditor Compliance Logs ──────────────────────────────────────────────

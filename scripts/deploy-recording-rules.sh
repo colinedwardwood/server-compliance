@@ -5,6 +5,12 @@
 # Usage:
 #   ./scripts/deploy-recording-rules.sh
 #   GRAFANA_URL=https://foo.grafana.net GRAFANA_TOKEN=glsa_... ./scripts/deploy-recording-rules.sh
+#   COMPLIANCE_WINDOW=26h ./scripts/deploy-recording-rules.sh   # e.g. for daily scans
+#
+# ${COMPLIANCE_WINDOW} in the rules file is replaced with COMPLIANCE_WINDOW
+# (default 13h, set in .env); see the rules file header for how to size it.
+# COMPLIANCE_PROFILES (optional, space-separated, e.g. "cis-dil-benchmark") limits the
+# per-control groups to the profiles you actually scan; unset deploys all of them.
 
 set -euo pipefail
 
@@ -19,6 +25,8 @@ gf_load_env "${REPO_DIR}"
 RULES_FILE="${REPO_DIR}/grafana-cloud/recording-rules/compliance-recording-rules.yaml"
 [ -f "${RULES_FILE}" ] || { echo "Error: Rules file not found: ${RULES_FILE}" >&2; exit 1; }
 
+gf_compliance_window
+
 # 1. Resolve Loki datasource UID
 log "Resolving Loki datasource UID..."
 DATASOURCES=$(gf_api GET "/api/datasources" -H "Content-Type: application/json")
@@ -28,11 +36,7 @@ if [ -n "${GRAFANA_LOKI_DS:-}" ]; then
     '.[] | select(.name == $name) | .uid')
   [ -z "${LOKI_UID}" ] && { echo "Error: Loki datasource '${GRAFANA_LOKI_DS}' not found." >&2; exit 1; }
 else
-  LOKI_UID=$(echo "${DATASOURCES}" | jq -r \
-    '[.[] | select(
-        .type == "loki" and
-        (.name | ascii_downcase | test("alert.state.history") | not)
-      )] | sort_by(.name) | first | .uid // ""')
+  LOKI_UID=$(gf_pick_loki_uid "${DATASOURCES}")
 fi
 
 [ -z "${LOKI_UID}" ] && { echo "Error: No Loki datasource found. Set GRAFANA_LOKI_DS in .env." >&2; exit 1; }
@@ -55,6 +59,8 @@ _GRAFANA_URL="${GRAFANA_URL}" \
 _GRAFANA_TOKEN="${GRAFANA_TOKEN}" \
 _LOKI_UID="${LOKI_UID}" \
 _NAMESPACE="${NAMESPACE}" \
+_COMPLIANCE_WINDOW="${COMPLIANCE_WINDOW}" \
+_COMPLIANCE_PROFILES="${COMPLIANCE_PROFILES:-}" \
 python3 - <<'PYEOF'
 import json, os, subprocess, sys, tempfile, yaml
 
@@ -63,9 +69,11 @@ grafana_url   = os.environ["_GRAFANA_URL"]
 grafana_token = os.environ["_GRAFANA_TOKEN"]
 loki_uid      = os.environ["_LOKI_UID"]
 namespace     = os.environ["_NAMESPACE"]
+window        = os.environ["_COMPLIANCE_WINDOW"]
+profiles      = os.environ["_COMPLIANCE_PROFILES"].split()
 
 with open(rules_file) as f:
-    data = yaml.safe_load(f)
+    data = yaml.safe_load(f.read().replace("${COMPLIANCE_WINDOW}", window))
 
 curlrc = tempfile.NamedTemporaryFile(mode="w", suffix=".curlrc", delete=False)
 try:
@@ -73,10 +81,14 @@ try:
     curlrc.close()
     os.chmod(curlrc.name, 0o600)
 
+    prefix = "compliance-per-control-"
     for group in data["groups"]:
+        name = group.get("name", "unknown")
+        if profiles and name.startswith(prefix) and name[len(prefix):] not in profiles:
+            print(f"  [SKIP] group '{name}' (profile not in COMPLIANCE_PROFILES)")
+            continue
         payload = json.dumps(group)
         url = f"{grafana_url}/api/ruler/{loki_uid}/api/v1/rules/{namespace}"
-        name = group.get("name", "unknown")
         result = subprocess.run(
             [
                 "curl", "--silent", "--show-error", "--fail-with-body",

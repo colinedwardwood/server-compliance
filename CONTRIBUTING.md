@@ -13,6 +13,7 @@ This is an open-source Linux compliance pipeline built on cinc-auditor, Grafana 
 
 You will need:
 - `shellcheck` for linting shell scripts (`brew install shellcheck` or `sudo apt install shellcheck`)
+- `python3` with PyYAML for `scripts/check-files.py` (`pip install pyyaml` or `sudo apt install python3-yaml`)
 - `ansible-lint` if editing Ansible roles (`pip install ansible-lint`)
 - `curl` and `jq` for testing deploy scripts
 

@@ -28,7 +28,7 @@ is derived from logs.
 ## Repository layout
 
 ```
-compliance-profiles/          Waiver and input files for each scan profile
+compliance-profiles/          Inputs and example waivers for each scan profile
   linux-baseline/               dev-sec/linux-baseline (hourly, ~40 controls)
   cis-dil-benchmark/            dev-sec/cis-dil-benchmark (every 6h, ~250 controls)
 
@@ -45,7 +45,7 @@ ansible/                      Automated deployment to Ubuntu hosts
 
 docs/                         Documentation
   setup.md                      Step-by-step manual setup guide
-  next-steps.md                 Ideas for future development
+ROADMAP.md                    Planned work
 
 scripts/
   grafana-lib.sh                Shared Grafana API helpers (sourced by deploy scripts)
@@ -54,11 +54,11 @@ scripts/
   deploy-recording-rules.sh     Push Loki recording rules to Grafana Cloud
   deploy-slos.sh                Push SLOs to Grafana Cloud
   validate-grafana.sh           Read back and verify everything deployed to Grafana Cloud
-  lint.sh                       shellcheck wrapper (run via `make check`)
+  lint.sh                       shellcheck wrapper
 
 config.alloy                  Grafana Alloy configuration (deploy to /etc/alloy/)
 verify.sh                     Compliance scan wrapper script (deploy to /usr/local/bin/)
-.env.example                  Credential template (Grafana Cloud + Loki)
+.env.example                  Settings for the deploy scripts (Grafana URL/token, window)
 ```
 
 ## Quick start
@@ -67,11 +67,12 @@ verify.sh                     Compliance scan wrapper script (deploy to /usr/loc
 
 See **[docs/setup.md](docs/setup.md)** for the full step-by-step guide.
 
-The short version:
+The short version (setup.md also covers the CIS profile, cron, log rotation and
+Alloy):
 
 ```bash
 # 1. Install cinc-auditor
-curl -L https://omnitruck.cinc.sh/install.sh | sudo bash -s -- -P cinc-auditor -v 4
+curl -L https://omnitruck.cinc.sh/install.sh | sudo bash -s -- -P cinc-auditor -v 6.8.11
 
 # 2. Install the compliance-json reporter plugin
 cd inspec-reporter-compliance-json
@@ -82,9 +83,10 @@ cd ..
 # 3. Copy profiles, scripts, and Alloy config
 sudo mkdir -p /opt/audit-profiles
 sudo git clone --branch 2.9.0 --depth 1 https://github.com/dev-sec/linux-baseline /opt/audit-profiles/linux-baseline
-sudo cp compliance-profiles/linux-baseline/waivers.yaml /opt/audit-profiles/linux-baseline/
 sudo cp verify.sh /usr/local/bin/verify.sh && sudo chmod +x /usr/local/bin/verify.sh
 sudo cp config.alloy /etc/alloy/config.alloy
+# 4. Put PROM_URL, PROM_USERNAME, PROM_PASSWORD, LOKI_URL, LOKI_USERNAME and
+#    LOKI_PASSWORD in /etc/default/alloy (mode 0600), then start Alloy
 ```
 
 ### On the Linux host (Ansible)
@@ -92,7 +94,7 @@ sudo cp config.alloy /etc/alloy/config.alloy
 ```bash
 cd ansible
 cp group_vars/all/vars.yml.example group_vars/all/vars.yml
-$EDITOR group_vars/all/vars.yml        # add Grafana Cloud credentials
+$EDITOR group_vars/all/vars.yml        # Grafana Cloud endpoints and credentials
 ansible-vault encrypt group_vars/all/vars.yml
 $EDITOR inventory.yml                  # add your host(s)
 ansible-playbook -i inventory.yml site.yml --ask-vault-pass
@@ -104,7 +106,7 @@ Requires `curl`, `jq`, and `python3-yaml`.
 
 ```bash
 cp .env.example .env
-$EDITOR .env   # add GRAFANA_URL and GRAFANA_TOKEN
+$EDITOR .env   # GRAFANA_URL, GRAFANA_TOKEN; COMPLIANCE_WINDOW if you scan less often
 
 ./scripts/deploy-recording-rules.sh   # must run first
 ./scripts/deploy-dashboards.sh
@@ -121,8 +123,14 @@ $EDITOR .env   # add GRAFANA_URL and GRAFANA_TOKEN
 | `linux-baseline` | Every hour at :05 | ~40 | Fast daily posture check |
 | `cis-dil-benchmark` | Every 6h at :15 | ~250 | CIS Level 1 — SOC2/ISO27001 reference |
 
-Profile waivers are in `compliance-profiles/<profile>/waivers.yaml`. Each waiver
-is documented with a justification and expiry date. Review quarterly.
+Nothing is waived by default. Each profile directory has a `waivers.example.yaml`
+with common justifications; copy it to `waivers.yaml`, keep what applies to your
+hosts and set your own expiry dates (the Ansible role and `verify.sh` only use
+`waivers.yaml`). Review waivers quarterly.
+
+If you change the schedule, set `COMPLIANCE_WINDOW` in `.env` to more than the
+longest interval between two scans of a profile (default `13h`; `26h` for daily
+scans) and redeploy the recording rules and alerts.
 
 ## Metrics
 
@@ -133,7 +141,7 @@ on the host.
 |--------|-------------|
 | `cinc_auditor_compliance_score` | Fraction of controls passing (0.0–1.0) |
 | `cinc_auditor_controls_total{status}` | Count by passed/failed/waived/skipped/total |
-| `cinc_auditor_control_status` | Per-control: 1=passed, 0=failed, -1=skipped, -2=waived |
+| `cinc_auditor_control_status` | Per-control, failed controls only (value 0) |
 | `cinc_auditor_scan_duration_seconds` | Last scan runtime |
 | `cinc_auditor_last_scan_timestamp_seconds` | Unix timestamp of last completed scan |
 
@@ -147,10 +155,8 @@ on the host.
 
 | File | Purpose |
 |------|---------|
-| `.env` | Grafana Cloud token for deploy scripts |
-| `grafana-api.key` | Raw API key (reference) |
-| `grafana-cloud.instance` | Stack URL and instance ID (reference) |
-| `test.target` | SSH connection details for test host |
+| `.env` | Grafana URL/token and settings for the deploy scripts |
+| `ansible/group_vars/all/vars.yml` | Alloy endpoints and credentials for the Ansible role |
 
 ## Stack
 

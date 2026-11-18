@@ -7,7 +7,7 @@
         dest: "/tmp/{{ item.name }}.tar.gz"
         checksum: "{{ item.checksum }}"
         mode: "0644"
-      loop: "{{ compliance_profiles }}"
+      loop: "{{ _enabled_profiles }}"
       loop_control:
         label: "{{ item.name }}"
 
@@ -17,7 +17,7 @@
         dest: "{{ audit_profiles_base }}"
         remote_src: true
         creates: "{{ audit_profiles_base }}/{{ item.extracted_dir }}"
-      loop: "{{ compliance_profiles }}"
+      loop: "{{ _enabled_profiles }}"
       loop_control:
         label: "{{ item.name }}"
 
@@ -27,7 +27,7 @@
         dest: "{{ audit_profiles_base }}/{{ item.name }}"
         state: link
         force: true
-      loop: "{{ compliance_profiles }}"
+      loop: "{{ _enabled_profiles }}"
       loop_control:
         label: "{{ item.name }}"
 
@@ -35,30 +35,29 @@
       ansible.builtin.file:
         path: "/tmp/{{ item.name }}.tar.gz"
         state: absent
-      loop: "{{ compliance_profiles }}"
+      loop: "{{ _enabled_profiles }}"
       loop_control:
         label: "{{ item.name }}"
 
-- name: Deploy linux-baseline waivers
+- name: Deploy waivers (only for profiles with a waivers.yaml)
   ansible.builtin.copy:
-    src: "{{ playbook_dir }}/../compliance-profiles/linux-baseline/waivers.yaml"
-    dest: "{{ audit_profiles_base }}/linux-baseline/waivers.yaml"
+    src: "{{ compliance_waivers_dir }}/{{ item.name }}/waivers.yaml"
+    dest: "{{ audit_profiles_base }}/{{ item.name }}/waivers.yaml"
     owner: root
     group: root
     mode: "0644"
+  loop: "{{ _enabled_profiles }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when: (compliance_waivers_dir ~ '/' ~ item.name ~ '/waivers.yaml') is file
 
-- name: Deploy cis-dil-benchmark waivers
+- name: Deploy profile inputs
   ansible.builtin.copy:
-    src: "{{ playbook_dir }}/../compliance-profiles/cis-dil-benchmark/waivers.yaml"
-    dest: "{{ audit_profiles_base }}/cis-dil-benchmark/waivers.yaml"
+    src: "{{ playbook_dir }}/../compliance-profiles/{{ item.name }}/inputs.yaml"
+    dest: "{{ audit_profiles_base }}/{{ item.name }}/inputs.yaml"
     owner: root
     group: root
     mode: "0644"
-
-- name: Deploy cis-dil-benchmark inputs
-  ansible.builtin.copy:
-    src: "{{ playbook_dir }}/../compliance-profiles/cis-dil-benchmark/inputs.yaml"
-    dest: "{{ audit_profiles_base }}/cis-dil-benchmark/inputs.yaml"
-    owner: root
-    group: root
-    mode: "0644"
+  loop: "{{ _enabled_profiles | selectattr('has_inputs') | list }}"
+  loop_control:
+    label: "{{ item.name }}"

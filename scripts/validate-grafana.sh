@@ -111,11 +111,7 @@ else
     LOKI_UID=$(echo "${LOKI_DATASOURCES}" | jq -r --arg n "${GRAFANA_LOKI_DS}" \
       '.[] | select(.name == $n) | .uid')
   else
-    LOKI_UID=$(echo "${LOKI_DATASOURCES}" | jq -r \
-      '[.[] | select(
-          .type == "loki" and
-          (.name | ascii_downcase | test("alert.state.history") | not)
-        )] | sort_by(.name) | first | .uid // ""')
+    LOKI_UID=$(gf_pick_loki_uid "${LOKI_DATASOURCES}")
   fi
 
   if [ -z "${LOKI_UID}" ]; then
@@ -125,14 +121,16 @@ else
 
     _RULES_FILE="${RECORDING_RULES_FILE}" \
     _REMOTE_RULES="${REMOTE_RULES}" \
+    _COMPLIANCE_WINDOW="${COMPLIANCE_WINDOW:-13h}" \
     python3 - <<'PYEOF'
 import json, os, sys, yaml
 
 rules_file   = os.environ["_RULES_FILE"]
 remote_json  = os.environ["_REMOTE_RULES"]
+window       = os.environ["_COMPLIANCE_WINDOW"]
 
 with open(rules_file) as f:
-    local_data = yaml.safe_load(f)
+    local_data = yaml.safe_load(f.read().replace("${COMPLIANCE_WINDOW}", window))
 
 try:
     remote_data = json.loads(remote_json)

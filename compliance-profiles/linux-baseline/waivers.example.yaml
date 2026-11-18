@@ -1,5 +1,11 @@
 # cinc-auditor / InSpec waiver file for dev-sec/linux-baseline
 #
+# EXAMPLE FILE — nothing here is deployed as-is.
+# To use waivers, copy this file to waivers.yaml in the same directory, keep only the
+# entries that apply to your hosts, and set your own expiration dates. The Ansible role
+# and verify.sh only pick up waivers.yaml; without it every control counts normally.
+# When a waiver's expiration_date passes, the control counts normally again.
+#
 # !! HOST-SPECIFIC — review before deploying to other machines !!
 # The entries below reflect common real-world scenarios (older hardware,
 # Tailscale VPN, home-lab media servers). Remove or update any entry that

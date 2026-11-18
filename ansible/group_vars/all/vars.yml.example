@@ -10,9 +10,10 @@ grafana_prom_password: "glc_xxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 grafana_loki_username: "789012"
 grafana_loki_password: "glc_xxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 
-# Override endpoints only if your stack is in a different region:
-# grafana_prom_url: "https://prometheus-prod-01-eu-west-0.grafana.net/api/prom/push"
-# grafana_loki_url: "https://logs-prod-eu-west-0.grafana.net/loki/api/v1/push"
+# Required: your stack's remote-write endpoints (they depend on the region).
+# Grafana Cloud → Your Stack → Prometheus / Loki → Details shows both URLs.
+grafana_prom_url: "https://prometheus-<region>.grafana.net/api/prom/push"
+grafana_loki_url: "https://logs-<region>.grafana.net/loki/api/v1/push"
 
 # Override profile storage location if needed (defaults to /opt/audit-profiles):
 # audit_profiles_base: "/opt/audit-profiles"

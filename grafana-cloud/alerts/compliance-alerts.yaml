@@ -7,7 +7,9 @@
 #   Failure    — binary conditions indicating something is broken
 #   Error      — degraded compliance state exceeding tolerance thresholds
 #
-# Import into Grafana Cloud via the Alerting API or the UI (Alerting → Alert rules → Import).
+# Deploy with ./scripts/deploy-alerts.sh, which replaces ${COMPLIANCE_WINDOW_SECONDS}
+# with COMPLIANCE_WINDOW (default 13h) in seconds. You can also import the rules via the
+# Alerting API or the UI (Alerting → Alert rules → Import) after replacing it by hand.
 
 groups:
   # ════════════════════════════════════════════════════════════════════════════
@@ -16,25 +18,26 @@ groups:
   - name: compliance-failure
     interval: 5m
     rules:
-      # 26 h: cis-dil-benchmark runs once a day (2026-11-18). Needs the 7d window on
-      # cinc_auditor_last_scan_timestamp_seconds in the recording rules, or the series
-      # disappears before the threshold. linux-baseline was retired the same day; its
-      # last series lingers for 7 days, so it is excluded. Live rule uid 9ad0ba69704155900dcc.
+      # Fires when a profile hasn't reported for longer than COMPLIANCE_WINDOW (the same
+      # window the recording rules use, so it must exceed your longest scan interval).
+      # cinc_auditor_last_scan_timestamp_seconds is recorded over 7d, so the alert keeps
+      # firing for up to 7 days after scans stop, then resolves when the series goes away.
+      # If you stop scanning a profile on purpose, silence its alerts until then
+      # (matcher profile=<name>) rather than editing this rule.
       - alert: ComplianceScanStale
         expr: |
-          (time() - cinc_auditor_last_scan_timestamp_seconds{profile!="linux-baseline"}) > 93600
+          (time() - cinc_auditor_last_scan_timestamp_seconds) > ${COMPLIANCE_WINDOW_SECONDS}
         for: 15m
         labels:
           severity: critical
           saafe_category: failure
           saafe_severity: critical
         annotations:
-          summary: "Compliance scan stale (>26h) on {{ $labels.host }} / {{ $labels.profile }}"
+          summary: "Compliance scan stale on {{ $labels.host }} / {{ $labels.profile }}"
           description: >-
             No scan results received for {{ $labels.profile }} on {{ $labels.host }}
-            in over 26 hours (cis-dil-benchmark runs once a day, 02:00-05:00 host time;
-            CVE profiles every 3h). The cron job may have stopped, cinc-auditor may be
-            failing, or Alloy may not be shipping metrics.
+            for longer than the configured compliance window. The cron job may have
+            stopped, cinc-auditor may be failing, or Alloy may not be shipping logs.
 
       - alert: ComplianceScoreZero
         expr: |
@@ -211,10 +214,14 @@ groups:
   - name: compliance-saturation
     interval: 5m
     rules:
+      # Node metrics are labelled instance=<hostname> (config.alloy) while the compliance
+      # metrics carry host=<hostname>, so the join relabels host to instance.
       - alert: ScanHostHighCPU
         expr: |
           (1 - avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m]))) > 0.9
-          and on(instance) cinc_auditor_last_scan_timestamp_seconds
+          and on(instance)
+            label_replace(max by (host) (cinc_auditor_last_scan_timestamp_seconds),
+                          "instance", "$1", "host", "(.*)")
         for: 15m
         labels:
           severity: info
@@ -229,7 +236,9 @@ groups:
       - alert: ScanHostDiskPressure
         expr: |
           (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) < 0.1
-          and on(instance) cinc_auditor_last_scan_timestamp_seconds
+          and on(instance)
+            label_replace(max by (host) (cinc_auditor_last_scan_timestamp_seconds),
+                          "instance", "$1", "host", "(.*)")
         for: 15m
         labels:
           severity: warning

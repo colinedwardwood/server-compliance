@@ -6,10 +6,26 @@
       - grafana_prom_password | length > 0
       - grafana_loki_username | length > 0
       - grafana_loki_password | length > 0
+      - grafana_prom_url | length > 0
+      - grafana_loki_url | length > 0
     fail_msg: >
-      Grafana Cloud credentials must be set. Define grafana_prom_username,
-      grafana_prom_password, grafana_loki_username, and grafana_loki_password
-      in your inventory or vault.
+      Grafana Cloud endpoints and credentials must be set. Define grafana_prom_url,
+      grafana_loki_url, grafana_prom_username, grafana_prom_password,
+      grafana_loki_username and grafana_loki_password in your inventory or vault
+      (see group_vars/all/vars.yml.example).
+
+# A profile counts as enabled unless it sets `enabled: false`.
+- name: Reset enabled compliance profiles
+  ansible.builtin.set_fact:
+    _enabled_profiles: []
+
+- name: Collect enabled compliance profiles
+  ansible.builtin.set_fact:
+    _enabled_profiles: "{{ _enabled_profiles + [item] }}"
+  loop: "{{ compliance_profiles }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when: item.enabled | default(true) | bool
 
 - name: Install prerequisites
   ansible.builtin.import_tasks: prereqs.yml

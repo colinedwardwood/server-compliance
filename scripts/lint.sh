@@ -17,3 +17,6 @@ shellcheck -x \
   verify.sh
 
 echo "shellcheck passed."
+
+# Static checks for rules, dashboards and Ansible files (needs python3 with PyYAML)
+python3 "$(dirname "$0")/check-files.py"
