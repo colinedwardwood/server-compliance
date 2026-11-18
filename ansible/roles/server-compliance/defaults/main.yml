@@ -8,10 +8,12 @@ grafana_loki_username: ""
 grafana_loki_password: ""
 
 # ── Grafana Cloud remote-write endpoints ───────────────────────────────────────
-# These match the URLs already in config.alloy. Override if your stack is
-# in a different region.
-grafana_prom_url: "https://prometheus-us-central1.grafana.net/api/prom/push"
-grafana_loki_url: "https://logs-prod3.grafana.net/loki/api/v1/push"
+# Required. They depend on your stack's region; find them in Grafana Cloud under
+# your stack → Prometheus / Loki → Details, e.g.
+#   grafana_prom_url: "https://prometheus-<region>.grafana.net/api/prom/push"
+#   grafana_loki_url: "https://logs-<region>.grafana.net/loki/api/v1/push"
+grafana_prom_url: ""
+grafana_loki_url: ""
 
 # ── cinc-auditor version ───────────────────────────────────────────────────────
 # Passed to the omnitruck installer with -v. Pin to a known-good release.
@@ -35,11 +37,19 @@ audit_log_dir: "/var/log/cinc-auditor"
 #        curl -sL <repo_url> | sha256sum
 #   3. Update the checksum field below.
 #   Renovate opens PRs for step 1 automatically; steps 2-3 are manual.
+#
+# Set `enabled: false` on an entry to stop scanning that profile: its cron job is
+# removed on the next run (results already in Loki age out on their own).
+#
+# Schedules: the Loki recording rules and ComplianceScanStale use COMPLIANCE_WINDOW
+# (default 13h, see .env.example), which must be longer than the longest interval
+# here. If you scan less often (e.g. daily), raise COMPLIANCE_WINDOW (e.g. 26h).
 compliance_profiles:
   - name: linux-baseline
     repo: "https://github.com/dev-sec/linux-baseline/archive/refs/tags/2.9.0.tar.gz"
     checksum: "sha256:8ad2dc0af3beb3c961060ca1c6ea5b805ee7028c6ecafe78d2bb75fae6256b72"
     extracted_dir: "linux-baseline-2.9.0"
+    enabled: true
     cron_minute: "5"
     cron_hour: "*"
     cron_day: "*"
@@ -51,12 +61,19 @@ compliance_profiles:
     repo: "https://github.com/dev-sec/cis-dil-benchmark/archive/refs/tags/0.4.12.tar.gz"
     checksum: "sha256:c1a0edd95084256a47cea300800f22f1e4c21586a2ad09f6ea71c621dcab8441"
     extracted_dir: "cis-dil-benchmark-0.4.12"
+    enabled: true
     cron_minute: "15"
     cron_hour: "0,6,12,18"
     cron_day: "*"
     cron_month: "*"
     cron_weekday: "*"
     has_inputs: true
+
+# ── Waivers ────────────────────────────────────────────────────────────────────
+# Directory on the Ansible controller holding <profile>/waivers.yaml files. A profile's
+# waivers are deployed only if that file exists; the repo ships waivers.example.yaml
+# files to copy from (see compliance-profiles/). Without one, every control counts.
+compliance_waivers_dir: "{{ playbook_dir }}/../compliance-profiles"
 
 # ── System user that runs scans ───────────────────────────────────────────────
 # The cron jobs run as root so cinc-auditor can audit privileged resources

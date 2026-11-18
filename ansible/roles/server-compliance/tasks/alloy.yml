@@ -1,8 +1,22 @@
 ---
-- name: Add Grafana APT signing key
+# apt.grafana.com serves an ASCII-armored key; a keyring referenced by
+# signed-by=*.gpg must be binary, so dearmor it.
+- name: Download Grafana APT signing key
   ansible.builtin.get_url:
     url: https://apt.grafana.com/gpg.key
-    dest: /etc/apt/keyrings/grafana.gpg
+    dest: /etc/apt/keyrings/grafana.asc
+    mode: "0644"
+  register: _grafana_key
+
+- name: Dearmor Grafana APT signing key
+  ansible.builtin.command:
+    cmd: gpg --batch --yes --dearmor -o /etc/apt/keyrings/grafana.gpg /etc/apt/keyrings/grafana.asc
+  when: _grafana_key is changed
+  changed_when: true
+
+- name: Set Grafana keyring permissions
+  ansible.builtin.file:
+    path: /etc/apt/keyrings/grafana.gpg
     mode: "0644"
 
 - name: Add Grafana APT repository

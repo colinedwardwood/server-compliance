@@ -11,8 +11,8 @@ prometheus.remote_write "metrics_service" {
     url = "{{ grafana_prom_url }}"
 
     basic_auth {
-      username = env("PROM_USERNAME")
-      password = env("PROM_PASSWORD")
+      username = sys.env("PROM_USERNAME")
+      password = sys.env("PROM_PASSWORD")
     }
   }
 }
@@ -22,8 +22,8 @@ loki.write "grafana_cloud_loki" {
     url = "{{ grafana_loki_url }}"
 
     basic_auth {
-      username = env("LOKI_USERNAME")
-      password = env("LOKI_PASSWORD")
+      username = sys.env("LOKI_USERNAME")
+      password = sys.env("LOKI_PASSWORD")
     }
   }
 }
@@ -188,25 +188,6 @@ declare "journal_module" {
   loki.process "default" {
     forward_to = argument.forward_to.value
   }
-}
-
-// ── Tailscale Metrics ─────────────────────────────────────────────────────────
-discovery.relabel "custom_tailscale" {
-  targets = [{"__address__" = "100.100.100.100"}]
-
-  rule {
-    target_label = "instance"
-    replacement  = constants.hostname
-  }
-  rule {
-    target_label = "job"
-    replacement  = "custom/tailscale"
-  }
-}
-
-prometheus.scrape "custom_tailscale" {
-  targets    = discovery.relabel.custom_tailscale.output
-  forward_to = [prometheus.remote_write.metrics_service.receiver]
 }
 
 // ── Cinc-Auditor Compliance Logs ──────────────────────────────────────────────

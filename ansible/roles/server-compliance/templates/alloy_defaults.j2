@@ -1,6 +1,6 @@
 # /etc/default/alloy
 # Grafana Alloy environment variables — managed by Ansible.
-# Credentials are loaded by config.alloy via env("VAR_NAME").
+# Credentials are loaded by config.alloy via sys.env("VAR_NAME").
 # This file is mode 0600; do not share or commit with real values.
 
 PROM_USERNAME={{ grafana_prom_username }}
