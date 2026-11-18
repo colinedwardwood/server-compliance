@@ -10,9 +10,9 @@ Gem::Specification.new do |s|
     Alloy and ingested into Loki, with Loki recording rules deriving Prometheus
     metrics from the log data.
   DESC
-  s.authors     = ["Colin Wilson"]
+  s.authors     = ["Colin Wood"]
   s.license     = "Apache-2.0"
-  s.homepage    = "https://github.com/colinwilson/server-compliance"
+  s.homepage    = "https://github.com/colinedwardwood/server-compliance"
 
   s.files       = Dir["lib/**/*", "*.gemspec", "LICENSE", "README.md"]
   s.require_paths = ["lib"]

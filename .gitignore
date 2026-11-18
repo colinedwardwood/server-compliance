@@ -3,8 +3,17 @@ blog/
 
 # Local credentials — never commit real values
 .env
+.env.*
+!.env.example
 grafana-api.key
 grafana-cloud.instance
+
+# Ansible: local variables, vault passwords and retry files. If your private fork
+# commits a vault-encrypted vars.yml, remove that line there.
+ansible/group_vars/all/vars.yml
+ansible/host_vars/
+.vault_pass*
+*.retry
 
 # Test / dev target host config
 test.target
