@@ -4,6 +4,14 @@
 # as Prometheus metrics. They replace the local textfile collector approach.
 #
 # Deploy with: ./deploy-recording-rules.sh
+#
+# Windows (2026-11-18): CIS runs once a day (02:00-05:00 host time, staggered per host),
+# CVE profiles every 3 h, and linux-baseline is no longer scheduled. last_over_time windows
+# must exceed the longest gap between two scans of a profile on a host (24 h + scan-duration
+# drift + 1 h on the DST fall-back day), or the metrics drop out between scans: 26h.
+# cinc_auditor_last_scan_timestamp_seconds keeps 7d so ComplianceScanStale (> 26 h) still
+# has a series to fire on after scans stop. The line filters skip json parsing of
+# non-matching lines, which keeps the longer windows cheap.
 
 groups:
   - name: compliance-per-control-linux-baseline
@@ -26,18 +34,20 @@ groups:
   - name: compliance-per-control-cis-dil-benchmark
     interval: 5m
     rules:
-      # Per-control failed status for cis-dil-benchmark.
+      # Per-control failed status for cis-dil-benchmark. A control fixed since its last failing
+      # scan drops out when that line leaves the 26h window (~2 h after the next daily scan).
       # Filtered to failed-only to stay under Loki's 500 series limit
       # (~60 failing controls × 10 hosts = ~600 max, shrinks as waivers apply).
       - record: cinc_auditor_control_status
         expr: |
           last_over_time(
             {job="custom/cinc_auditor"}
+              |= "\"status\":\"failed\""
               | json
               | type="control"
               | profile="cis-dil-benchmark"
               | status="failed"
-              | unwrap status_val [2h]
+              | unwrap status_val [26h]
           ) by (host, profile, control, severity)
 
   - name: compliance-aggregates
@@ -48,9 +58,10 @@ groups:
         expr: |
           last_over_time(
             {job="custom/cinc_auditor"}
+              |= "\"type\":\"scan_summary\""
               | json
               | type="scan_summary"
-              | unwrap score [8h]
+              | unwrap score [26h]
           ) by (host, profile)
 
       # Control counts by status
@@ -60,9 +71,10 @@ groups:
         expr: |
           last_over_time(
             {job="custom/cinc_auditor"}
+              |= "\"type\":\"scan_summary\""
               | json
               | type="scan_summary"
-              | unwrap passed [8h]
+              | unwrap passed [26h]
           ) by (host, profile)
 
       - record: cinc_auditor_controls_total
@@ -71,9 +83,10 @@ groups:
         expr: |
           last_over_time(
             {job="custom/cinc_auditor"}
+              |= "\"type\":\"scan_summary\""
               | json
               | type="scan_summary"
-              | unwrap failed [8h]
+              | unwrap failed [26h]
           ) by (host, profile)
 
       - record: cinc_auditor_controls_total
@@ -82,9 +95,10 @@ groups:
         expr: |
           last_over_time(
             {job="custom/cinc_auditor"}
+              |= "\"type\":\"scan_summary\""
               | json
               | type="scan_summary"
-              | unwrap waived [8h]
+              | unwrap waived [26h]
           ) by (host, profile)
 
       - record: cinc_auditor_controls_total
@@ -93,9 +107,10 @@ groups:
         expr: |
           last_over_time(
             {job="custom/cinc_auditor"}
+              |= "\"type\":\"scan_summary\""
               | json
               | type="scan_summary"
-              | unwrap skipped [8h]
+              | unwrap skipped [26h]
           ) by (host, profile)
 
       - record: cinc_auditor_controls_total
@@ -104,9 +119,10 @@ groups:
         expr: |
           last_over_time(
             {job="custom/cinc_auditor"}
+              |= "\"type\":\"scan_summary\""
               | json
               | type="scan_summary"
-              | unwrap total [8h]
+              | unwrap total [26h]
           ) by (host, profile)
 
       # Scan duration in seconds
@@ -114,17 +130,19 @@ groups:
         expr: |
           last_over_time(
             {job="custom/cinc_auditor"}
+              |= "\"type\":\"scan_summary\""
               | json
               | type="scan_summary"
-              | unwrap duration [8h]
+              | unwrap duration [26h]
           ) by (host, profile)
 
-      # Unix timestamp of the last completed scan
+      # Unix timestamp of the last completed scan (7d window: see header)
       - record: cinc_auditor_last_scan_timestamp_seconds
         expr: |
           last_over_time(
             {job="custom/cinc_auditor"}
+              |= "\"type\":\"scan_summary\""
               | json
               | type="scan_summary"
-              | unwrap scan_ts [8h]
+              | unwrap scan_ts [7d]
           ) by (host, profile)

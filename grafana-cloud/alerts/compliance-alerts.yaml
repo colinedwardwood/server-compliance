@@ -16,19 +16,24 @@ groups:
   - name: compliance-failure
     interval: 5m
     rules:
+      # 26 h: cis-dil-benchmark runs once a day (2026-11-18). Needs the 7d window on
+      # cinc_auditor_last_scan_timestamp_seconds in the recording rules, or the series
+      # disappears before the threshold. linux-baseline was retired the same day; its
+      # last series lingers for 7 days, so it is excluded. Live rule uid 9ad0ba69704155900dcc.
       - alert: ComplianceScanStale
         expr: |
-          (time() - cinc_auditor_last_scan_timestamp_seconds) > 7200
+          (time() - cinc_auditor_last_scan_timestamp_seconds{profile!="linux-baseline"}) > 93600
         for: 15m
         labels:
           severity: critical
           saafe_category: failure
           saafe_severity: critical
         annotations:
-          summary: "Compliance scan stale on {{ $labels.host }} / {{ $labels.profile }}"
+          summary: "Compliance scan stale (>26h) on {{ $labels.host }} / {{ $labels.profile }}"
           description: >-
             No scan results received for {{ $labels.profile }} on {{ $labels.host }}
-            in over 2 hours. The cron job may have stopped, cinc-auditor may be
+            in over 26 hours (cis-dil-benchmark runs once a day, 02:00-05:00 host time;
+            CVE profiles every 3h). The cron job may have stopped, cinc-auditor may be
             failing, or Alloy may not be shipping metrics.
 
       - alert: ComplianceScoreZero
