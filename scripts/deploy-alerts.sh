@@ -7,6 +7,9 @@
 #   ./scripts/deploy-alerts.sh
 #   GRAFANA_URL=https://foo.grafana.net GRAFANA_TOKEN=glsa_... ./scripts/deploy-alerts.sh
 #
+# ${COMPLIANCE_WINDOW_SECONDS} in the rules file is replaced with COMPLIANCE_WINDOW
+# (default 13h) in seconds; use the same value as for deploy-recording-rules.sh.
+#
 # Requirements: curl, jq, python3 with PyYAML (pip3 install pyyaml)
 
 set -euo pipefail
@@ -47,24 +50,25 @@ if [ -n "${GRAFANA_PROM_DS:-}" ]; then
     '.[] | select(.name == $name) | .uid')
   [ -z "${PROM_UID}" ] && { echo "Error: Prometheus datasource '${GRAFANA_PROM_DS}' not found." >&2; exit 1; }
 else
-  PROM_UID=$(echo "${DATASOURCES}" | jq -r \
-    '[.[] | select(.type == "prometheus")] | sort_by(.name) | first | .uid // ""')
+  PROM_UID=$(gf_pick_prom_uid "${DATASOURCES}")
 fi
 
 [ -z "${PROM_UID}" ] && { echo "Error: No Prometheus datasource found. Set GRAFANA_PROM_DS." >&2; exit 1; }
 log "  Prometheus UID: ${PROM_UID}"
 
+gf_compliance_window
+
 # 3. Convert YAML to Grafana provisioning format and deploy
 # Single-quoted heredoc — no shell expansion; values passed via sys.argv.
 log "Parsing alert rules from ${ALERTS_FILE}..."
 
-GROUPS_JSON=$(python3 - "${ALERTS_FILE}" "${PROM_UID}" "${FOLDER_UID}" <<'PYEOF'
+GROUPS_JSON=$(python3 - "${ALERTS_FILE}" "${PROM_UID}" "${FOLDER_UID}" "${COMPLIANCE_WINDOW_SECONDS}" <<'PYEOF'
 import json, sys, yaml
 
-alerts_file, prom_uid, folder_uid = sys.argv[1], sys.argv[2], sys.argv[3]
+alerts_file, prom_uid, folder_uid, window_seconds = sys.argv[1:5]
 
 with open(alerts_file) as f:
-    data = yaml.safe_load(f)
+    data = yaml.safe_load(f.read().replace("${COMPLIANCE_WINDOW_SECONDS}", window_seconds))
 
 def convert_rule(rule):
     """Convert a Prometheus-style alert rule to Grafana provisioning format."""

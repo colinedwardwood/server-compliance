@@ -52,8 +52,7 @@ if [ -n "${GRAFANA_PROM_DS:-}" ]; then
     '.[] | select(.name == $name) | .uid')
   [ -z "${PROM_UID}" ] && { echo "Error: Prometheus datasource '${GRAFANA_PROM_DS}' not found." >&2; exit 1; }
 else
-  PROM_UID=$(echo "${DATASOURCES}" | jq -r \
-    '[.[] | select(.type == "prometheus")] | sort_by(.name) | first | .uid // ""')
+  PROM_UID=$(gf_pick_prom_uid "${DATASOURCES}")
 fi
 
 [ -z "${PROM_UID}" ] && { echo "Error: No Prometheus datasource found. Set GRAFANA_PROM_DS." >&2; exit 1; }

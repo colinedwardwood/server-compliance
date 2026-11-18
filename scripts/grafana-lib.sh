@@ -6,8 +6,9 @@
 #   GRAFANA_TOKEN — Grafana service account token (glsa_...)
 #
 # Optional:
-#   GRAFANA_PROM_DS — exact Prometheus datasource name (skips auto-detection)
-#   GRAFANA_LOKI_DS — exact Loki datasource name (skips auto-detection)
+#   GRAFANA_PROM_DS   — exact Prometheus datasource name (skips auto-detection)
+#   GRAFANA_LOKI_DS   — exact Loki datasource name (skips auto-detection)
+#   COMPLIANCE_WINDOW — lookback for recording rules and ComplianceScanStale (default 13h)
 
 # Logging
 log() { echo "[$(date -u +%H:%M:%S)] $*"; }
@@ -41,6 +42,29 @@ gf_ensure_folder() {
   fi
 }
 
+# Datasource UID auto-detection (used when GRAFANA_PROM_DS / GRAFANA_LOKI_DS are unset)
+# Grafana Cloud stacks ship several datasources of each type (usage, ML, alert state
+# history...). Prefer the stack's primary ones (uid grafanacloud-prom / grafanacloud-logs),
+# then fall back to the alphabetically first datasource of that type that isn't one of
+# those auxiliary sources.
+# Usage: gf_pick_prom_uid "<datasources json>"; gf_pick_loki_uid "<datasources json>"
+gf_pick_prom_uid() {
+  echo "$1" | jq -r '
+    ([.[] | select(.type == "prometheus" and .uid == "grafanacloud-prom")] | first | .uid)
+    // ([.[] | select(.type == "prometheus" and
+          (.name | ascii_downcase | test("usage|ml-metrics|cardinality") | not))]
+        | sort_by(.name) | first | .uid)
+    // ""'
+}
+gf_pick_loki_uid() {
+  echo "$1" | jq -r '
+    ([.[] | select(.type == "loki" and .uid == "grafanacloud-logs")] | first | .uid)
+    // ([.[] | select(.type == "loki" and
+          (.name | ascii_downcase | test("alert.state.history|usage") | not))]
+        | sort_by(.name) | first | .uid)
+    // ""'
+}
+
 # Datasource UID resolution
 # Usage: gf_resolve_datasources
 # Sets PROM_UID and LOKI_UID; exits on failure.
@@ -56,8 +80,7 @@ gf_resolve_datasources() {
       echo "Error: Prometheus datasource '${GRAFANA_PROM_DS}' not found." >&2; exit 1
     }
   else
-    PROM_UID=$(echo "${datasources}" | jq -r \
-      '[.[] | select(.type == "prometheus")] | sort_by(.name) | first | .uid // ""')
+    PROM_UID=$(gf_pick_prom_uid "${datasources}")
   fi
 
   if [ -n "${GRAFANA_LOKI_DS:-}" ]; then
@@ -67,11 +90,7 @@ gf_resolve_datasources() {
       echo "Error: Loki datasource '${GRAFANA_LOKI_DS}' not found." >&2; exit 1
     }
   else
-    LOKI_UID=$(echo "${datasources}" | jq -r \
-      '[.[] | select(
-          .type == "loki" and
-          (.name | ascii_downcase | test("alert.state.history") | not)
-        )] | sort_by(.name) | first | .uid // ""')
+    LOKI_UID=$(gf_pick_loki_uid "${datasources}")
   fi
 
   [ -z "${PROM_UID}" ] && {
@@ -83,6 +102,26 @@ gf_resolve_datasources() {
 
   log "  Prometheus UID : ${PROM_UID}"
   log "  Loki UID       : ${LOKI_UID}"
+}
+
+# Compliance lookback window
+# Usage: gf_compliance_window
+# Validates COMPLIANCE_WINDOW (a duration like 13h, 26h, 2d; default 13h) and sets
+# COMPLIANCE_WINDOW_SECONDS. It must be longer than the longest interval between two
+# scans of the same profile on a host; see the recording-rules file header.
+gf_compliance_window() {
+  COMPLIANCE_WINDOW="${COMPLIANCE_WINDOW:-13h}"
+  if ! [[ "${COMPLIANCE_WINDOW}" =~ ^([0-9]+)([mhd])$ ]]; then
+    echo "Error: COMPLIANCE_WINDOW must look like 13h, 26h or 2d (got '${COMPLIANCE_WINDOW}')." >&2
+    exit 1
+  fi
+  local n="${BASH_REMATCH[1]}" unit="${BASH_REMATCH[2]}"
+  case "${unit}" in
+    m) COMPLIANCE_WINDOW_SECONDS=$(( n * 60 )) ;;
+    h) COMPLIANCE_WINDOW_SECONDS=$(( n * 3600 )) ;;
+    d) COMPLIANCE_WINDOW_SECONDS=$(( n * 86400 )) ;;
+  esac
+  log "Compliance window: ${COMPLIANCE_WINDOW} (${COMPLIANCE_WINDOW_SECONDS}s)"
 }
 
 # Credential loading

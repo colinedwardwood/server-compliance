@@ -1,0 +1,53 @@
+# CIS DIL Benchmark — example waivers for Ubuntu 24.04
+#
+# EXAMPLE FILE — nothing here is deployed as-is.
+# To use waivers, copy this file to waivers.yaml in the same directory, keep only the
+# entries that apply to your hosts, and set your own expiration dates. The Ansible role
+# and verify.sh only pick up waivers.yaml; without it every control counts normally.
+# When a waiver's expiration_date passes, the control counts normally again.
+#
+# !! HOST-SPECIFIC — review before deploying to other machines !!
+# The entries below reflect common real-world scenarios (partition layout,
+# time-sync choice, hardware differences). Audit and update these before
+# applying to any system outside your own environment.
+#
+# Review and remove any waivers that no longer apply.
+# All waivers include a justification and expiration date.
+
+# ── Time synchronization ──────────────────────────────────────────────────────
+# CIS expects chrony or ntp; Ubuntu 24.04 uses systemd-timesyncd by default.
+cis-dil-benchmark-2.2.1.1:
+  expiration_date: "2026-12-31"
+  justification: "systemd-timesyncd provides adequate NTP sync; chrony not required for this workload."
+  run: true
+
+# ── Prelink ───────────────────────────────────────────────────────────────────
+# prelink is not available on Ubuntu 24.04; the package does not exist.
+cis-dil-benchmark-1.5.4:
+  expiration_date: "2026-12-31"
+  justification: "prelink package does not exist on Ubuntu 24.04 LTS; control not applicable."
+  run: false
+
+# ── Bootloader password ───────────────────────────────────────────────────────
+# Environments where physical access is controlled and a GRUB password would
+# block remote recovery via console/KVM may waive this control.
+cis-dil-benchmark-1.4.2:
+  expiration_date: "2026-12-31"
+  justification: "Physical access is controlled; GRUB password would block remote recovery. Risk accepted."
+  run: true
+
+# ── /tmp on separate partition ────────────────────────────────────────────────
+# Systems provisioned without a dedicated /tmp partition may waive this control.
+# Mitigate by enforcing noexec on /tmp in /etc/fstab.
+cis-dil-benchmark-1.1.2:
+  expiration_date: "2026-12-31"
+  justification: "Provisioned without a separate /tmp partition; risk accepted, noexec enforced via fstab."
+  run: true
+
+# ── Wireless interfaces ───────────────────────────────────────────────────────
+# Servers with WiFi disabled in BIOS may trigger this check unreliably on
+# Ubuntu 24.04 due to changes in the detection method.
+cis-dil-benchmark-3.7:
+  expiration_date: "2026-12-31"
+  justification: "WiFi disabled at hardware level; control detection method unreliable on Ubuntu 24.04."
+  run: true
